@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COBOL.JS // RETRO IDE</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <script src="libs/knockout-3.5.1.js"></script>
+    <script src="libs/local-file-system.js"></script>
+    <script type="module" src="scripts/app.js"></script>
+</head>
+<body data-bind="css: { 'app-busy': isBusy }">
+    <div class="scanlines"></div>
+
+    <header class="app-header">
+        <h1 class="app-title">
+            COBOL.JS <span class="app-tag">// VER 0.6.0</span>
+        </h1>
+    </header>
+
+    <aside class="panel panel-files">
+        <div class="panel-title">[ FILES ]</div>
+        <div class="panel-body">
+            <!-- ko ifnot: fileIO.isMounted -->
+            <button class="files-mount-btn" data-bind="click: mount">[ MOUNT DIR ]</button>
+            <!-- /ko -->
+            <!-- ko if: fileIO.isMounted -->
+            <ul class="files-list" data-bind="foreach: { data: fileIO.programList, as: 'name' }">
+                <li class="files-list-item">
+                    <button class="files-list-btn" data-bind="text: name, click: function() { $root.loadProgram(name); }"></button>
+                </li>
+            </ul>
+            <!-- ko ifnot: fileIO.programList().length -->
+            <div class="files-empty">[ NO .CBL FILES ]</div>
+            <!-- /ko -->
+            <!-- /ko -->
+        </div>
+    </aside>
+
+    <main class="app-main">
+
+        <section class="panel panel-source">
+            <div class="panel-title">[ SOURCE ]</div>
+            <div class="editor" data-bind="editorWiring: editor">
+                <div class="editor-gutter" data-bind="foreach: editor.lineNumbers">
+                    <div class="editor-line-num" data-bind="text: $data"></div>
+                </div>
+                <textarea class="editor-textarea" spellcheck="false"
+                          data-bind="value: editor.text, valueUpdate: 'input'"></textarea>
+            </div>
+        </section>
+
+        <nav class="button-rail">
+            <div class="app-status">
+                <span class="status-cell">
+                    <span class="status-label">PROG</span>
+                    <span class="status-value" data-bind="text: displayFileName"></span>
+                </span>
+                <span class="status-sep">::</span>
+                <span class="status-cell">
+                    <span class="status-label">STATUS</span>
+                    <span class="status-value" data-bind="text: status, attr: { 'data-status': status }"></span>
+                </span>
+            </div>
+            <div class="button-rail-actions">
+                <button class="btn" data-bind="click: mount">SET DIR</button>
+                <button class="btn" data-bind="click: newProgram">NEW</button>
+                <button class="btn" data-bind="click: saveProgram">SAVE</button>
+                <button class="btn">EXAMPLES</button>
+                <button class="btn btn-primary" data-bind="click: run">RUN</button>
+            </div>
+        </nav>
+
+        <section class="panel panel-console">
+            <div class="panel-title">[ CONSOLE ]</div>
+            <div class="panel-body console-body" data-bind="autoScrollBottom: console.lines">
+                <!-- ko foreach: { data: console.lines, as: 'line' } -->
+                <div class="console-line" data-bind="css: 'console-line-' + line.kind, text: line.text"></div>
+                <!-- /ko -->
+                <!-- ko with: console -->
+                <!-- ko if: isPrompting -->
+                <div class="console-prompt">
+                    <span class="console-prompt-prefix" data-bind="text: pendingPartial"></span>
+                    <input class="console-prompt-input" type="text" autocomplete="off" spellcheck="false"
+                           data-bind="textInput: promptInput, hasFocus: true, event: { keydown: handleInputKeyDown }">
+                </div>
+                <!-- /ko -->
+                <!-- /ko -->
+            </div>
+        </section>
+    </main>
+</body>
+</html>
