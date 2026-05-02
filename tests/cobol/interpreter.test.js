@@ -31,8 +31,9 @@ class MockConsole
         this.partial = "";
     }
 
-    writeSystem(text) { this.lines.push("[sys] " + text); }
-    writeError(text)  { this.lines.push("[err] " + text); }
+    writeSystem(text)  { this.lines.push("[sys] " + text); }
+    writeWarning(text) { this.lines.push("[warn] " + text); }
+    writeError(text)   { this.lines.push("[err] " + text); }
 
     prompt()
     {
@@ -347,6 +348,27 @@ suite("Interpreter", () =>
 
             expect(out.lines).toEqual(["012"]);
         });
+
+        // Locks `numericOf`'s silent alpha→0 coercion. Same convention
+        // as DataItem.assignNumeric — non-numeric source becomes 0
+        // rather than throwing. Lifting this to a hard error is a
+        // post-v0.1 policy decision (see REVIEW notes).
+        test("alphanumeric source treated as 0", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 LABEL PIC X(5) VALUE "HELLO".
+                  01 N PIC 9(3) VALUE 10.
+                  PROCEDURE DIVISION.
+                      ADD LABEL TO N.
+                      DISPLAY N.`
+            );
+
+            expect(out.lines).toEqual(["010"]);
+        });
     });
 
     suite("SUBTRACT", () =>
@@ -400,6 +422,23 @@ suite("Interpreter", () =>
 
             expect(out.lines).toEqual(["035"]);
         });
+
+        test("in-place applies to multiple targets", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 A PIC 9(3) VALUE 30.
+                  01 B PIC 9(3) VALUE 40.
+                  PROCEDURE DIVISION.
+                      SUBTRACT 5 FROM A B.
+                      DISPLAY A " " B.`
+            );
+
+            expect(out.lines).toEqual(["025 035"]);
+        });
     });
 
     suite("MULTIPLY", () =>
@@ -418,6 +457,23 @@ suite("Interpreter", () =>
             );
 
             expect(out.lines).toEqual(["020"]);
+        });
+
+        test("in-place applies to multiple targets", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 A PIC 9(3) VALUE 3.
+                  01 B PIC 9(3) VALUE 4.
+                  PROCEDURE DIVISION.
+                      MULTIPLY 2 BY A B.
+                      DISPLAY A " " B.`
+            );
+
+            expect(out.lines).toEqual(["006 008"]);
         });
 
         test("GIVING form", async () =>
@@ -455,6 +511,23 @@ suite("Interpreter", () =>
             );
 
             expect(out.lines).toEqual(["004"]);
+        });
+
+        test("INTO in-place applies to multiple targets", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 A PIC 9(3) VALUE 12.
+                  01 B PIC 9(3) VALUE 30.
+                  PROCEDURE DIVISION.
+                      DIVIDE 2 INTO A B.
+                      DISPLAY A " " B.`
+            );
+
+            expect(out.lines).toEqual(["006 015"]);
         });
 
         test("INTO + GIVING: result = dividend / divisor", async () =>

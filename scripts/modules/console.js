@@ -70,7 +70,10 @@ class Console
 
     prompt()
     {
-        if(this.pendingResolve) { return Promise.reject(new Error("Console already prompting")); }
+        // Caller is expected to gate via `isBusy` (which already includes
+        // `isPrompting`) — re-entry would corrupt `pendingResolve`, so a
+        // hard throw is the right signal if the discipline ever breaks.
+        if(this.pendingResolve) { throw new Error("Console already prompting"); }
 
         return new Promise((resolve) =>
         {

@@ -135,6 +135,68 @@ layout, but submodules import from `errors.js` directly.
 ES6 module loaders handle cycles, but each new submodule deepens the
 graph and value initialisation order becomes fragile.
 
+### Cohesive parser sub-grammars live in `cobol/parser/*.js`
+
+When the Parser grows past the head-size threshold, extract cohesive
+sub-grammars (statement families, division-specific parsing) as free
+functions in `scripts/modules/cobol/parser/<name>.js`. Each extracted
+function takes the `Parser` instance as its first argument and uses
+the cursor primitives (`peek`/`consume`/`expect`/`matchKeyword`),
+error helpers (`errorAt`/`errorExpected`), and operand-list helpers
+(`parseOperand`/`parseOperandsUntilKeyword`/`parseIdentifiersUntilKeyword`)
+exposed by the Parser.
+
+```js
+// scripts/modules/cobol/parser/arithmetic.js
+function parseAdd(parser)
+{
+    const startTok = parser.consume();
+    const sources = parser.parseOperandsUntilKeyword("TO", "GIVING");
+    // ...
+}
+
+export { parseAdd, parseSubtract, parseMultiply, parseDivide };
+```
+
+```js
+// scripts/modules/cobol/parser.js
+import * as Arithmetic from "./parser/arithmetic.js";
+
+case "ADD": return Arithmetic.parseAdd(this);
+```
+
+Established in V0.12.0 H1 remediation (arithmetic + data-division
+extracted; parser.js dropped 712 → 386 LOC). Future cohesive
+sub-grammars (conditions in Task 13, PERFORM forms in Task 14) follow
+the same pattern.
+
+**Why:** keeps each file in head-size, makes the dependency on the
+Parser cursor explicit at the call-site (vs. implicit `this.peek()`
+after a prototype mixin), and lets each sub-grammar be reasoned about
+or tested in isolation if needed. Small wordiness penalty inside the
+extracted functions in exchange for clean module boundaries.
+
+### Test runner has no `.toBeDefined` or `.not.*` matchers
+
+The custom Node test harness (`tests/runner.js`) only ships `toBe`,
+`toEqual`, and `toThrow`. To assert existence:
+
+```js
+// Avoid: tautology — passes for any value, including undefined
+expect(item).toBe(item);
+
+// Prefer: explicit boolean cast
+expect(item !== undefined).toBe(true);
+
+// Better when feasible: assert a concrete property that proves identity
+expect(item.name).toBe("USER-NAME");
+```
+
+**Why:** without `.toBeDefined`, the natural reach for an existence
+check is `expect(x).toBe(x)`, which silently passes for any value of
+`x`. V0.12.0 H2 was a real instance of this slipping through. The
+explicit boolean form makes the intent unambiguous.
+
 ### Prefer derived state over flag-and-subscriber
 
 When a piece of state can be derived from existing observables, write a

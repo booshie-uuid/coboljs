@@ -54,6 +54,27 @@ suite("Parser", () =>
             expect(program.programId).toBe("PROG");
             expect(program.paragraphs[0].statements.length).toBe(1);
         });
+
+        test("non-WORKING-STORAGE sections inside DATA DIVISION are skipped", () =>
+        {
+            // FILE SECTION comes before WORKING-STORAGE here. The parser
+            // should consume FILE-SECTION tokens until WORKING-STORAGE
+            // appears and pick up parsing there.
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. PROG.
+                  DATA DIVISION.
+                  FILE SECTION.
+                  FD INPUT-FILE.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 7.
+                  PROCEDURE DIVISION.
+                      DISPLAY X.`
+            );
+
+            expect(program.dataItems.has("X")).toBe(true);
+            expect(program.dataItems.get("X").getDisplay()).toBe("007");
+        });
     });
 
     suite("WORKING-STORAGE", () =>
@@ -72,7 +93,7 @@ suite("Parser", () =>
 
             const item = program.dataItems.get("USER-NAME");
 
-            expect(item).toBe(item);
+            expect(item !== undefined).toBe(true);
             expect(item.level).toBe(1);
             expect(item.name).toBe("USER-NAME");
             expect(item.pic.kind).toBe("alphanumeric");

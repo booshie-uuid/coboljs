@@ -21,6 +21,12 @@ class Interpreter
     {
         this.program = program;
         this.console = consoleHandle;
+        this.evaluator = new ExpressionEvaluator();
+
+        // Bind once so each COMPUTE/condition evaluation can hand the
+        // same function reference to ExpressionEvaluator without
+        // allocating a fresh closure per call.
+        this.resolveNumeric = (name, line) => this.lookupName(name, line).getNumeric();
     }
 
     async execute()
@@ -181,10 +187,7 @@ class Interpreter
 
     executeCompute(statement)
     {
-        const resolver = (name, line) => this.lookupItem({ name, line }).getNumeric();
-
-        const evaluator = new ExpressionEvaluator(resolver);
-        const result = evaluator.evaluate(statement.expressionTokens);
+        const result = this.evaluator.evaluate(statement.expressionTokens, this.resolveNumeric);
 
         this.lookupItem(statement.target).assign(result);
     }
@@ -246,16 +249,18 @@ class Interpreter
         throw new CobolRuntimeError(operand.line, `unknown operand kind "${operand.kind}"`);
     }
 
-    lookupItem(operand)
+    lookupName(name, line)
     {
-        const item = this.program.dataItems.get(operand.name);
+        const item = this.program.dataItems.get(name);
 
-        if(!item)
-        {
-            throw new CobolRuntimeError(operand.line, `identifier "${operand.name}" is not defined`);
-        }
+        if(!item) { throw new CobolRuntimeError(line, `identifier "${name}" is not defined`); }
 
         return item;
+    }
+
+    lookupItem(operand)
+    {
+        return this.lookupName(operand.name, operand.line);
     }
 }
 

@@ -7,9 +7,9 @@ import { CobolSyntaxError, CobolRuntimeError } from "../../scripts/modules/cobol
 function evaluate(expr, vars = {})
 {
     const tokens = new Lexer().tokenize(expr).filter(t => t.type !== "EOF");
-    const evaluator = new ExpressionEvaluator(name => vars[name] ?? 0);
+    const evaluator = new ExpressionEvaluator();
 
-    return evaluator.evaluate(tokens);
+    return evaluator.evaluate(tokens, name => vars[name] ?? 0);
 }
 
 
@@ -62,15 +62,16 @@ suite("ExpressionEvaluator", () =>
             let receivedName = null;
 
             const tokens = new Lexer().tokenize("X + 1").filter(t => t.type !== "EOF");
-            const evaluator = new ExpressionEvaluator((name) =>
+            const evaluator = new ExpressionEvaluator();
+            const resolver = (name) =>
             {
                 receivedName = name;
 
                 throw new CobolRuntimeError(1, `identifier "${name}" is not defined`);
-            });
+            };
 
             let thrown = null;
-            try { evaluator.evaluate(tokens); } catch(e) { thrown = e; }
+            try { evaluator.evaluate(tokens, resolver); } catch(e) { thrown = e; }
 
             expect(receivedName).toBe("X");
             expect(thrown instanceof CobolRuntimeError).toBe(true);

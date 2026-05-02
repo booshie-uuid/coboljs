@@ -482,3 +482,26 @@ Sub-Section names should be CAPITLISED.
 
 function firstThingInSubSection()
 ```
+
+---
+
+## Tests
+
+### Every assertion must verify a non-trivial claim
+
+An `expect(...)` line is only useful if it could fail. Tautologies — assertions whose left and right sides are the same expression — pass regardless of state and read like an existence check at a glance. They erode trust in the suite because they hide real defects: the test stays green even when the thing it appears to be checking is broken.
+
+```js
+// Avoid: passes for any value of `item`, including undefined
+const item = lookupItem("X");
+
+expect(item).toBe(item);
+
+// Prefer: an explicit existence check (when the runner has no `.toBeDefined`)
+expect(item !== undefined).toBe(true);
+
+// Better when feasible: assert a concrete property that proves identity
+expect(item.name).toBe("X");
+```
+
+**Why:** mid-task velocity makes it easy to copy assertion boilerplate without re-reading the comparison. The cost of a tautological assertion is silent — green tests that don't actually verify anything — so the discipline has to live in the writing, not the reading. Before submitting a test, scan each `expect` line and confirm the LHS and RHS could plausibly diverge. If they can't, either rewrite the assertion or delete it.

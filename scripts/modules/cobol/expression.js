@@ -19,24 +19,23 @@ import { CobolSyntaxError, CobolRuntimeError } from "./errors.js";
 // Right-associative `**` is encoded by recursing through `unary` on the
 // right side; that also lets `2 ** -3` parse without an extra rule.
 //
-// Identifier values are resolved via the constructor-supplied callback,
-// which receives `(name, line)` so the resolver can emit a positioned
-// error if the name is undefined. Reusable from condition parsing in
-// Task 13 — comparisons evaluate two arithmetic sub-expressions.
+// Identifier values are resolved via a per-call callback that receives
+// `(name, line)` and returns a number — the caller emits a positioned
+// runtime error if the name is undefined. Stateless across calls (the
+// `tokens`/`pos` cursor is reset on each `evaluate`), so a single shared
+// instance can be reused — important once PERFORM-VARYING (Task 14)
+// loops over expressions. Reusable from condition parsing in Task 13:
+// comparisons evaluate two arithmetic sub-expressions.
 
 class ExpressionEvaluator
 {
-    constructor(resolver)
-    {
-        this.resolver = resolver;
-    }
-
-    evaluate(tokens)
+    evaluate(tokens, resolver)
     {
         if(tokens.length === 0) { throw new CobolSyntaxError(null, "empty expression"); }
 
         this.tokens = tokens;
         this.pos = 0;
+        this.resolver = resolver;
 
         const value = this.parseExpression();
 
@@ -107,7 +106,7 @@ class ExpressionEvaluator
             this.consume();
             const right = this.parseUnary();
 
-            return Math.pow(left, right);
+            return left ** right;
         }
 
         return left;
@@ -150,7 +149,11 @@ class ExpressionEvaluator
             return value;
         }
 
-        throw new CobolSyntaxError(t.line, `expected expression, got ${t.type} "${t.value}"`);
+        // EOF tokens carry value: null — render as just the type so the
+        // error doesn't read `got EOF "null"`.
+        const got = t.value === null? t.type: `${t.type} "${t.value}"`;
+
+        throw new CobolSyntaxError(t.line, `expected expression, got ${got}`);
     }
 
 
