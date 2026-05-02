@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>COBOL.JS — Stats</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body
+{
+    width: 524px;
+    height: 932px;
+    background: #0a0a1f;
+    color: #e2f5ff;
+    font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+    padding: 44px 40px;
+    position: relative;
+    overflow: hidden;
+}
+
+body::before
+{
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(255, 43, 214, 0.18) 0%, transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(0, 246, 255, 0.12) 0%, transparent 55%),
+        repeating-linear-gradient(0deg, transparent 0, transparent 1px, rgba(0, 246, 255, 0.04) 1px, rgba(0, 246, 255, 0.04) 2px);
+    pointer-events: none;
+}
+
+.title
+{
+    font-size: 82px;
+    font-weight: 700;
+    color: #ff2bd6;
+    text-shadow: 0 0 20px rgba(255, 43, 214, 0.7), 0 0 40px rgba(255, 43, 214, 0.35);
+    letter-spacing: -1.5px;
+    line-height: 0.9;
+    position: relative;
+}
+
+.tagline
+{
+    color: #00f6ff;
+    font-size: 18px;
+    margin-top: 12px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(0, 246, 255, 0.6);
+    position: relative;
+}
+
+.numbers
+{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 30px;
+    position: relative;
+}
+
+.number .value
+{
+    font-size: 56px;
+    font-weight: 700;
+    color: #e2f5ff;
+    text-shadow: 0 0 12px rgba(0, 246, 255, 0.45);
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.number .label
+{
+    color: #7d8aa3;
+    font-size: 13px;
+    margin-top: 8px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.bar
+{
+    display: flex;
+    height: 20px;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 0 14px rgba(0, 246, 255, 0.25);
+    margin-top: 30px;
+    position: relative;
+}
+
+.bar-segment { height: 100%; }
+
+.legend
+{
+    margin-top: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    position: relative;
+}
+
+.legend-row
+{
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+}
+
+.dot
+{
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 14px;
+    box-shadow: 0 0 8px currentColor;
+    flex-shrink: 0;
+}
+
+.dot.diamond
+{
+    border-radius: 0;
+    transform: rotate(45deg);
+    box-shadow: 0 0 14px currentColor;
+}
+
+.legend-label
+{
+    flex: 0 0 136px;
+    color: #e2f5ff;
+}
+
+.legend-pct
+{
+    flex: 0 0 63px;
+    color: #00f6ff;
+    text-align: right;
+    font-weight: 700;
+}
+
+.legend-loc
+{
+    color: #7d8aa3;
+    margin-left: 16px;
+    font-size: 16px;
+}
+
+.legend-row.cobol .legend-label
+{
+    color: #ff2bd6;
+    text-shadow: 0 0 8px rgba(255, 43, 214, 0.6);
+    font-weight: 700;
+}
+
+.legend-row.cobol .legend-pct
+{
+    color: #ff2bd6;
+    text-shadow: 0 0 8px rgba(255, 43, 214, 0.6);
+}
+
+.legend-row.cobol .legend-loc
+{
+    color: #c46cb5;
+}
+
+.process-box
+{
+    margin-top: 30px;
+    padding: 22px 26px;
+    border: 1px solid rgba(0, 246, 255, 0.4);
+    border-radius: 5px;
+    box-shadow: 0 0 16px rgba(0, 246, 255, 0.2), inset 0 0 12px rgba(0, 246, 255, 0.04);
+    background: rgba(0, 246, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    position: relative;
+}
+
+.process-row,
+.tests-row
+{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.process-label,
+.tests-label
+{
+    color: #e2f5ff;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+}
+
+.process-value
+{
+    color: #00f6ff;
+    font-size: 25px;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(0, 246, 255, 0.45);
+}
+
+.process-value .unit
+{
+    color: #7d8aa3;
+    font-size: 16px;
+    font-weight: 400;
+    margin-left: 6px;
+    text-shadow: none;
+    letter-spacing: 1px;
+}
+
+.tests-row
+{
+    margin-top: 30px;
+}
+
+.tests-value
+{
+    color: #00ff7e;
+    font-size: 27px;
+    font-weight: 700;
+    text-shadow: 0 0 9px rgba(0, 255, 126, 0.55);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+
+.tests-tick
+{
+    color: #00ff7e;
+    font-size: 27px;
+    text-shadow: 0 0 11px rgba(0, 255, 126, 0.85);
+}
+
+.built-with
+{
+    margin-top: 30px;
+    text-align: center;
+}
+
+.built-with::before
+{
+    content: '';
+    display: block;
+    width: 155px;
+    height: 1px;
+    margin: 0 auto 18px;
+    background: linear-gradient(90deg, transparent, rgba(0, 246, 255, 0.5) 25%, rgba(255, 43, 214, 0.5) 75%, transparent);
+}
+
+.built-with-prefix
+{
+    color: rgba(0, 246, 255, 0.75);
+    font-size: 13px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+}
+
+.built-with-name
+{
+    color: #ff2bd6;
+    font-size: 33px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(255, 43, 214, 0.8), 0 0 28px rgba(255, 43, 214, 0.4);
+    margin-top: 7px;
+    line-height: 1;
+}
+</style>
+</head>
+<body>
+    <div class="title">COBOL.JS</div>
+    <div class="tagline">// JAVASCRIPT COBOL EMULATOR</div>
+
+    <div class="numbers">
+        <div class="number"><div class="value">5,641</div><div class="label">Lines of Code</div></div>
+        <div class="number"><div class="value">37</div><div class="label">Files</div></div>
+    </div>
+
+    <div class="bar"><div class="bar-segment" style="width:89%;background:#ffb13b;"></div><div class="bar-segment" style="width:8%;background:#a44dff;"></div><div class="bar-segment" style="width:2%;background:#ff2bd6;"></div><div class="bar-segment" style="width:1%;background:#ff5e5e;"></div><div class="bar-segment" style="width:0%;background:#4a5060;"></div></div>
+    <div class="legend">
+            <div class="legend-row">
+                <div class="dot" style="background:#ffb13b;color:#ffb13b;"></div>
+                <div class="legend-label">JavaScript</div>
+                <div class="legend-pct">89%</div>
+                <div class="legend-loc">5,008 lines</div>
+            </div>
+            <div class="legend-row">
+                <div class="dot" style="background:#a44dff;color:#a44dff;"></div>
+                <div class="legend-label">CSS</div>
+                <div class="legend-pct">8%</div>
+                <div class="legend-loc">450 lines</div>
+            </div>
+            <div class="legend-row cobol">
+                <div class="dot diamond" style="background:#ff2bd6;color:#ff2bd6;"></div>
+                <div class="legend-label">COBOL</div>
+                <div class="legend-pct">2%</div>
+                <div class="legend-loc">87 lines</div>
+            </div>
+            <div class="legend-row">
+                <div class="dot" style="background:#ff5e5e;color:#ff5e5e;"></div>
+                <div class="legend-label">HTML</div>
+                <div class="legend-pct">1%</div>
+                <div class="legend-loc">87 lines</div>
+            </div>
+    </div>
+
+    <div class="process-box">
+        <div class="process-row"><div class="process-label">Plans</div><div class="process-value">2,000<span class="unit">words</span></div></div>
+        <div class="process-row"><div class="process-label">Reviews</div><div class="process-value">3,454<span class="unit">words</span></div></div>
+    </div>
+
+    <div class="tests-row">
+        <div class="tests-label">Tests</div>
+        <div class="tests-value">248 / 248 <span class="tests-tick">✓</span></div>
+    </div>
+
+    <div class="built-with">
+        <div class="built-with-prefix">// Built with</div>
+        <div class="built-with-name">Claude Code</div>
+    </div>
+</body>
+</html>
