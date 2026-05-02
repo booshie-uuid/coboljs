@@ -1,3 +1,6 @@
+// Companion `autoScrollBottom` Knockout binding lives in scripts/modules/bindings.js.
+
+
 /******************************************************************************/
 /* CONSOLE                                                                    */
 /******************************************************************************/
@@ -14,9 +17,6 @@ class Console
         this.pendingResolve = null;
 
         this.handleInputKeyDown = this.handleInputKeyDown.bind(this);
-
-        this.writeSystem("> COBOL.JS V0.1 // SYNTHWAVE EDITION");
-        this.writeSystem("> READY.");
     }
 
     write(text, noAdvance = false)
@@ -38,6 +38,12 @@ class Console
     {
         this.flushPartial();
         this.lines.push({ text: text, kind: "system" });
+    }
+
+    writeWarning(text)
+    {
+        this.flushPartial();
+        this.lines.push({ text: text, kind: "warning" });
     }
 
     writeError(text)
@@ -102,22 +108,6 @@ class Console
         return false;
     }
 }
-
-
-/******************************************************************************/
-/* KNOCKOUT BINDINGS                                                          */
-/******************************************************************************/
-
-ko.bindingHandlers.autoScrollBottom =
-{
-    update(element, valueAccessor)
-    {
-        ko.unwrap(valueAccessor());
-
-        // Defer to next tick so the foreach has rendered the new line(s) before we scroll.
-        setTimeout(() => { element.scrollTop = element.scrollHeight; }, 0);
-    }
-};
 
 
 export { Console };

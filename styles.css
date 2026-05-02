@@ -471,6 +471,12 @@ body
     color: var(--neon-amber);
 }
 
+.console-line-warning
+{
+    color: var(--neon-amber);
+    text-shadow: 0 0 4px rgba(255, 177, 59, 0.4);
+}
+
 .console-line-error
 {
     color: var(--neon-magenta);

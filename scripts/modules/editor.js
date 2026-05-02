@@ -1,3 +1,6 @@
+// Companion `editorWiring` Knockout binding lives in scripts/modules/bindings.js.
+
+
 /******************************************************************************/
 /* EDITOR                                                                     */
 /******************************************************************************/
@@ -45,37 +48,6 @@ class Editor
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
 }
-
-
-/******************************************************************************/
-/* KNOCKOUT BINDING                                                           */
-/******************************************************************************/
-
-ko.bindingHandlers.editorWiring =
-{
-    init(element, valueAccessor)
-    {
-        const editor = valueAccessor();
-
-        const textarea = element.querySelector("textarea");
-        const gutter = element.querySelector(".editor-gutter");
-
-        if(!textarea || !gutter) { return; }
-
-        textarea.addEventListener("scroll", () =>
-        {
-            gutter.scrollTop = textarea.scrollTop;
-        });
-
-        textarea.addEventListener("keydown", (event) =>
-        {
-            if(event.key !== "Tab") { return; }
-
-            event.preventDefault();
-            editor.insertIndent(textarea);
-        });
-    }
-};
 
 
 export { Editor };

@@ -141,6 +141,81 @@ currentBuilding.posX = x;
 currentBuilding.posY = y;
 ```
 
+### Single-letter names for shadow-dodging are a structural smell
+
+If you find yourself reaching for a one-letter name to dodge a collision with a longer-named variable in scope, the structure is wrong, not the name. Two distinct concepts deserve two distinct names; both should read in full.
+
+```js
+// Avoid: `k` only exists to dodge collision with outer `kind`
+let kind = null;
+
+while(more)
+{
+    const k = computeKindForCurrentChar();
+
+    if(kind && kind !== k) { throw error; }
+
+    kind = k;
+}
+
+// Prefer: rename the outer one so both concepts read naturally
+let picKind = null;
+
+while(more)
+{
+    const kind = computeKindForCurrentChar();
+
+    if(picKind && picKind !== kind) { throw error; }
+
+    picKind = kind;
+}
+```
+
+This is the converse of the brevity exemption above — that one applies to dense, math-like code where short names *are* the clearest reading. Shadow-dodging shorts are different: they hide a naming problem.
+
+### Prefer `null` over magic-zero / magic-empty defaults for "no value"
+
+When a parameter or field defaults to "no information available", use `null` rather than a sentinel value of the field's regular domain.
+
+```js
+// Avoid: `line: 0` is indistinguishable from "actually line 0"
+constructor({ line = 0 }) { this.line = line; }
+
+// And surfaces in errors as "LINE 0:", which is wrong-looking.
+throw new ParseError(this.line, "...");
+
+// Prefer: `null` reads as "no line known"; downstream code can render
+// it as "LINE ?:" or omit the line context entirely.
+constructor({ line = null }) { this.line = line; }
+```
+
+### Modules should be import-side-effect-free
+
+A module's top-level code should declare and export. Side effects (registering global handlers, mutating shared singletons, kicking off network calls) belong in dedicated bootstrap modules, imported once from the entry point.
+
+```js
+// Avoid: registering a handler at module load.
+class FooWidget { /* ... */ }
+
+ko.bindingHandlers.fooWiring = { /* ... */ };
+
+export { FooWidget };
+```
+
+```js
+// Prefer: keep the module pure.
+class FooWidget { /* ... */ }
+
+export { FooWidget };
+```
+
+```js
+// In a dedicated bindings.js, imported once from the entry point.
+ko.bindingHandlers.fooWiring = { /* ... */ };
+```
+
+**Why:** import-side-effecting modules can't be loaded in environments that don't have the side-effect target available (Node tests, future worker contexts, alternative entry points). Centralised registration is also easier to find — one file lists every binding instead of having them scattered across the modules they happen to relate to.
+
 ---
 
 ## Whitespace & Visual Layout

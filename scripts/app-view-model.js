@@ -1,6 +1,7 @@
 import { Editor } from "./modules/editor.js";
 import { Console } from "./modules/console.js";
 import { FileIO } from "./modules/file-io.js";
+import * as Cobol from "./modules/cobol.js";
 
 
 /******************************************************************************/
@@ -16,10 +17,16 @@ import { FileIO } from "./modules/file-io.js";
 // col 12 (Area B).
 const INITIAL_SOURCE =
 ` IDENTIFICATION DIVISION.
- PROGRAM-ID. HELLO-WORLD.
+ PROGRAM-ID. HELLO-NAME.
+
+ DATA DIVISION.
+ WORKING-STORAGE SECTION.
+ 01 USER-NAME PIC X(20).
 
  PROCEDURE DIVISION.
-     DISPLAY "HELLO, WORLD!".
+     DISPLAY "WHAT IS YOUR NAME? " WITH NO ADVANCING.
+     ACCEPT USER-NAME.
+     DISPLAY "HELLO, " USER-NAME.
      STOP RUN.
 `;
 
@@ -30,8 +37,10 @@ const INITIAL_SOURCE =
 
 class AppViewModel
 {
-    constructor()
+    constructor(version)
     {
+        this.version = version;
+
         this.editor = new Editor(INITIAL_SOURCE);
         this.console = new Console();
         this.fileIO = new FileIO();
@@ -40,13 +49,16 @@ class AppViewModel
         this.displayFileName = ko.pureComputed(() => this.currentFileName() || "untitled.cbl");
 
         this.runStatus = ko.observable("READY");
-        this.isDirty = ko.observable(true);
 
+        // `isDirty` is derived from data: dirty iff the editor's text differs from
+        // the last known-saved baseline. `lastSavedText(null)` makes any non-null
+        // editor content count as dirty — used for "no file yet" states.
+        this.lastSavedText = ko.observable(null);
+        this.isDirty = ko.pureComputed(() => this.editor.text() !== this.lastSavedText());
+
+        // Typing invalidates a prior runtime error — the user is working on the fix.
         this.editor.text.subscribe(() =>
         {
-            this.isDirty(true);
-
-            // Typing invalidates a prior runtime error — the user is working on the fix.
             if(this.runStatus() === "ERROR") { this.runStatus("READY"); }
         });
 
@@ -67,6 +79,9 @@ class AppViewModel
         this.saveProgram = this.saveProgram.bind(this);
         this.newProgram = this.newProgram.bind(this);
         this.run = this.run.bind(this);
+
+        this.console.writeSystem(`> COBOL.JS ${this.version} // SYNTHWAVE EDITION`);
+        this.console.writeSystem("> READY.");
     }
 
     newProgram()
@@ -75,7 +90,7 @@ class AppViewModel
 
         this.editor.setText("");
         this.currentFileName(null);
-        this.isDirty(true);
+        this.lastSavedText(null);
         this.runStatus("READY");
         this.console.writeSystem("> NEW PROGRAM");
     }
@@ -84,32 +99,19 @@ class AppViewModel
     {
         if(this.isBusy()) { return; }
 
-        if(this.isDirty())
-        {
-            this.console.writeError("! SAVE BEFORE RUNNING");
-
-            return;
-        }
-
         this.runStatus("RUNNING");
         this.console.writeSystem("> RUN " + this.displayFileName());
 
-        const start = performance.now();
+        if(this.isDirty()) { this.console.writeWarning("! UNSAVED EDITS — RUNNING IN-MEMORY SOURCE"); }
 
         try
         {
-            const firstLine = (this.editor.getText().split("\n")[0] || "").trim();
+            const success = await Cobol.run(this.editor.getText(), this.console);
 
-            if(firstLine) { this.console.write(firstLine); }
-
-            const elapsed = Math.round(performance.now() - start);
-            this.console.writeSystem("> PROGRAM TERMINATED NORMALLY (" + elapsed + "ms)");
-
-            this.runStatus("READY");
+            this.runStatus(success? "READY": "ERROR");
         }
         catch(error)
         {
-            this.console.writeError("! " + error.message);
             this.runStatus("ERROR");
         }
     }
@@ -141,7 +143,7 @@ class AppViewModel
 
             this.editor.setText(source);
             this.currentFileName(name);
-            this.isDirty(false);
+            this.lastSavedText(source);
 
             this.console.writeSystem("> LOADED " + name);
         }
@@ -180,10 +182,11 @@ class AppViewModel
 
         try
         {
-            const savedAs = await this.fileIO.write(name, this.editor.getText());
+            const sourceAtSave = this.editor.getText();
+            const savedAs = await this.fileIO.write(name, sourceAtSave);
 
             this.currentFileName(savedAs);
-            this.isDirty(false);
+            this.lastSavedText(sourceAtSave);
             this.console.writeSystem("> SAVED " + savedAs);
         }
         catch(error)

@@ -1,0 +1,9 @@
+import { run } from "./runner.js";
+
+import "./cobol/lexer.test.js";
+import "./cobol/pic.test.js";
+import "./cobol/data-item.test.js";
+import "./cobol/parser.test.js";
+import "./cobol/interpreter.test.js";
+
+await run();
