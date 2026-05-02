@@ -374,6 +374,294 @@ suite("Parser", () =>
         });
     });
 
+    suite("ADD", () =>
+    {
+        test("in-place: ADD x TO y", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      ADD 1 TO COUNTER.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("ADD");
+            expect(stmt.giving).toBe(false);
+            expect(stmt.sources.length).toBe(1);
+            expect(stmt.targets.length).toBe(1);
+            expect(stmt.targets[0].name).toBe("COUNTER");
+        });
+
+        test("multi-source TO multi-target", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      ADD A B TO C D.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.sources.map(s => s.name)).toEqual(["A", "B"]);
+            expect(stmt.targets.map(t => t.name)).toEqual(["C", "D"]);
+        });
+
+        test("GIVING form", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      ADD A B GIVING C.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.giving).toBe(true);
+            expect(stmt.targets[0].name).toBe("C");
+        });
+
+        test("missing TO/GIVING throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            ADD A B C.`)
+            ).toThrow("expected TO or GIVING in ADD");
+        });
+
+        test("no targets throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            ADD 1 TO.`)
+            ).toThrow("ADD requires at least one target");
+        });
+    });
+
+    suite("SUBTRACT", () =>
+    {
+        test("in-place: SUBTRACT x FROM y", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      SUBTRACT 1 FROM COUNTER.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("SUBTRACT");
+            expect(stmt.giving).toBe(false);
+            expect(stmt.from).toBe(null);
+            expect(stmt.targets[0].name).toBe("COUNTER");
+        });
+
+        test("FROM-via-GIVING form", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      SUBTRACT A FROM B GIVING C.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.giving).toBe(true);
+            expect(stmt.from.name).toBe("B");
+            expect(stmt.targets[0].name).toBe("C");
+        });
+
+        test("FROM literal in in-place form throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            SUBTRACT 5 FROM 10.`)
+            ).toThrow("must be an identifier");
+        });
+    });
+
+    suite("MULTIPLY", () =>
+    {
+        test("in-place: MULTIPLY x BY y", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      MULTIPLY 2 BY VALUE-FIELD.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("MULTIPLY");
+            expect(stmt.giving).toBe(false);
+            expect(stmt.multiplicand).toBe(null);
+            expect(stmt.targets[0].name).toBe("VALUE-FIELD");
+        });
+
+        test("GIVING form", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      MULTIPLY A BY B GIVING C.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.giving).toBe(true);
+            expect(stmt.multiplier.name).toBe("A");
+            expect(stmt.multiplicand.name).toBe("B");
+            expect(stmt.targets[0].name).toBe("C");
+        });
+
+        test("missing BY throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            MULTIPLY 2 X.`)
+            ).toThrow(`expected KEYWORD "BY"`);
+        });
+    });
+
+    suite("DIVIDE", () =>
+    {
+        test("in-place: DIVIDE divisor INTO target", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DIVIDE 3 INTO TOTAL.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("DIVIDE");
+            expect(stmt.giving).toBe(false);
+            expect(stmt.targets[0].name).toBe("TOTAL");
+        });
+
+        test("INTO + GIVING", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DIVIDE A INTO B GIVING C.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.giving).toBe(true);
+            expect(stmt.divisor.name).toBe("A");
+            expect(stmt.dividend.name).toBe("B");
+        });
+
+        test("BY + GIVING", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DIVIDE A BY B GIVING C.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.giving).toBe(true);
+            expect(stmt.dividend.name).toBe("A");
+            expect(stmt.divisor.name).toBe("B");
+        });
+
+        test("BY without GIVING throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            DIVIDE A BY B.`)
+            ).toThrow("DIVIDE BY requires GIVING");
+        });
+
+        test("missing direction throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            DIVIDE A B GIVING C.`)
+            ).toThrow("expected INTO or BY");
+        });
+    });
+
+    suite("COMPUTE", () =>
+    {
+        test("captures target and expression tokens", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      COMPUTE Y = X + 1.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("COMPUTE");
+            expect(stmt.target.name).toBe("Y");
+            // Three expression tokens: X, +, 1
+            expect(stmt.expressionTokens.length).toBe(3);
+            expect(stmt.expressionTokens[0].value).toBe("X");
+            expect(stmt.expressionTokens[1].value).toBe("+");
+            expect(stmt.expressionTokens[2].value).toBe("1");
+        });
+
+        test("missing = throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            COMPUTE Y X + 1.`)
+            ).toThrow(`expected "=" in COMPUTE`);
+        });
+
+        test("empty expression throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            COMPUTE Y = .`)
+            ).toThrow("COMPUTE requires an expression");
+        });
+
+        test("missing terminating period throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            COMPUTE Y = X + 1`)
+            ).toThrow("unexpected end of input in COMPUTE");
+        });
+    });
+
     suite("STOP RUN", () =>
     {
         test("parsed as STOP_RUN statement", () =>

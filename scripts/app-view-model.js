@@ -17,16 +17,19 @@ import * as Cobol from "./modules/cobol.js";
 // col 12 (Area B).
 const INITIAL_SOURCE =
 ` IDENTIFICATION DIVISION.
- PROGRAM-ID. HELLO-NAME.
+ PROGRAM-ID. COMPUTE-DEMO.
 
  DATA DIVISION.
  WORKING-STORAGE SECTION.
- 01 USER-NAME PIC X(20).
+ 01 X PIC 9(2) VALUE 4.
+ 01 Y PIC 9(4)V99.
 
  PROCEDURE DIVISION.
-     DISPLAY "WHAT IS YOUR NAME? " WITH NO ADVANCING.
-     ACCEPT USER-NAME.
-     DISPLAY "HELLO, " USER-NAME.
+     DISPLAY "X = " X.
+     COMPUTE Y = X ** 2 + 2 * X + 1.
+     DISPLAY "X^2 + 2X + 1 = " Y.
+     COMPUTE Y = (X + 1) * (X + 2).
+     DISPLAY "(X + 1)(X + 2) = " Y.
      STOP RUN.
 `;
 

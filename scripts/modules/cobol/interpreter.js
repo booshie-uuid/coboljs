@@ -1,4 +1,5 @@
 import { CobolRuntimeError } from "./errors.js";
+import { ExpressionEvaluator } from "./expression.js";
 
 
 /******************************************************************************/
@@ -39,9 +40,14 @@ class Interpreter
     {
         switch(statement.kind)
         {
-            case "DISPLAY": return this.executeDisplay(statement);
-            case "MOVE":    return this.executeMove(statement);
-            case "ACCEPT":  return this.executeAccept(statement);
+            case "DISPLAY":  return this.executeDisplay(statement);
+            case "MOVE":     return this.executeMove(statement);
+            case "ACCEPT":   return this.executeAccept(statement);
+            case "ADD":      return this.executeAdd(statement);
+            case "SUBTRACT": return this.executeSubtract(statement);
+            case "MULTIPLY": return this.executeMultiply(statement);
+            case "DIVIDE":   return this.executeDivide(statement);
+            case "COMPUTE":  return this.executeCompute(statement);
 
             default:
                 throw new CobolRuntimeError(statement.line, `unsupported statement "${statement.kind}"`);
@@ -90,6 +96,100 @@ class Interpreter
     }
 
 
+    /* ARITHMETIC **************************************************************/
+
+    executeAdd(statement)
+    {
+        const sum = statement.sources.reduce((acc, op) => acc + this.numericOf(op), 0);
+
+        for(const target of statement.targets)
+        {
+            const item = this.lookupItem(target);
+
+            item.assign(statement.giving? sum: item.getNumeric() + sum);
+        }
+    }
+
+    executeSubtract(statement)
+    {
+        const sum = statement.sources.reduce((acc, op) => acc + this.numericOf(op), 0);
+
+        if(statement.giving)
+        {
+            const fromValue = this.numericOf(statement.from);
+            const result = fromValue - sum;
+
+            for(const target of statement.targets) { this.lookupItem(target).assign(result); }
+
+            return;
+        }
+
+        for(const target of statement.targets)
+        {
+            const item = this.lookupItem(target);
+
+            item.assign(item.getNumeric() - sum);
+        }
+    }
+
+    executeMultiply(statement)
+    {
+        const multiplier = this.numericOf(statement.multiplier);
+
+        if(statement.giving)
+        {
+            const result = multiplier * this.numericOf(statement.multiplicand);
+
+            for(const target of statement.targets) { this.lookupItem(target).assign(result); }
+
+            return;
+        }
+
+        for(const target of statement.targets)
+        {
+            const item = this.lookupItem(target);
+
+            item.assign(item.getNumeric() * multiplier);
+        }
+    }
+
+    executeDivide(statement)
+    {
+        const divisor = this.numericOf(statement.divisor);
+
+        if(divisor === 0) { throw new CobolRuntimeError(statement.line, "Division by zero"); }
+
+        if(statement.giving)
+        {
+            const result = this.numericOf(statement.dividend) / divisor;
+
+            for(const target of statement.targets) { this.lookupItem(target).assign(result); }
+
+            return;
+        }
+
+        for(const target of statement.targets)
+        {
+            const item = this.lookupItem(target);
+
+            item.assign(item.getNumeric() / divisor);
+        }
+    }
+
+
+    /* COMPUTE *****************************************************************/
+
+    executeCompute(statement)
+    {
+        const resolver = (name, line) => this.lookupItem({ name, line }).getNumeric();
+
+        const evaluator = new ExpressionEvaluator(resolver);
+        const result = evaluator.evaluate(statement.expressionTokens);
+
+        this.lookupItem(statement.target).assign(result);
+    }
+
+
     /* RESOLUTION **************************************************************/
 
     resolveDisplayOf(operand)
@@ -124,6 +224,23 @@ class Interpreter
             if(item.pic.kind === "numeric") { return item.getNumeric(); }
 
             return item.getDisplay();
+        }
+
+        throw new CobolRuntimeError(operand.line, `unknown operand kind "${operand.kind}"`);
+    }
+
+    numericOf(operand)
+    {
+        if(operand.kind === "literal")
+        {
+            const parsed = parseFloat(operand.value);
+
+            return isNaN(parsed)? 0: parsed;
+        }
+
+        if(operand.kind === "identifier")
+        {
+            return this.lookupItem(operand).getNumeric();
         }
 
         throw new CobolRuntimeError(operand.line, `unknown operand kind "${operand.kind}"`);

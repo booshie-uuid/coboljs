@@ -255,10 +255,15 @@ class Parser
 
         switch(t.value)
         {
-            case "DISPLAY": return this.parseDisplay();
-            case "MOVE":    return this.parseMove();
-            case "ACCEPT":  return this.parseAccept();
-            case "STOP":    return this.parseStopRun();
+            case "DISPLAY":  return this.parseDisplay();
+            case "MOVE":     return this.parseMove();
+            case "ACCEPT":   return this.parseAccept();
+            case "ADD":      return this.parseAdd();
+            case "SUBTRACT": return this.parseSubtract();
+            case "MULTIPLY": return this.parseMultiply();
+            case "DIVIDE":   return this.parseDivide();
+            case "COMPUTE":  return this.parseCompute();
+            case "STOP":     return this.parseStopRun();
 
             default: this.errorAt(t, `unsupported statement "${t.value}"`);
         }
@@ -339,6 +344,276 @@ class Parser
         const target = { kind: "identifier", name: nameTok.value, line: nameTok.line };
 
         return { kind: "ACCEPT", target, line: startTok.line };
+    }
+
+
+    /* ARITHMETIC **************************************************************/
+
+    // Forms supported (plain or GIVING; not both):
+    //   ADD a [b...] TO target [target...].
+    //   ADD a [b...] GIVING target [target...].
+    parseAdd()
+    {
+        const startTok = this.consume();
+
+        const sources = this.parseOperandsUntilKeyword("TO", "GIVING");
+
+        if(sources.length === 0) { this.errorAt(this.peek(), "ADD requires at least one source"); }
+
+        const next = this.peek();
+        let targets = [];
+        let giving = false;
+
+        if(this.matchKeyword("TO"))
+        {
+            this.consume();
+            targets = this.parseIdentifiersUntilKeyword();
+        }
+        else if(this.matchKeyword("GIVING"))
+        {
+            this.consume();
+            targets = this.parseIdentifiersUntilKeyword();
+            giving = true;
+        }
+        else
+        {
+            this.errorAt(next, `expected TO or GIVING in ADD, got ${next.type} "${next.value}"`);
+        }
+
+        this.expect("PERIOD");
+
+        if(targets.length === 0) { this.errorAt(startTok, "ADD requires at least one target"); }
+
+        return { kind: "ADD", sources, targets, giving, line: startTok.line };
+    }
+
+    // Forms supported:
+    //   SUBTRACT a [b...] FROM target [target...].
+    //   SUBTRACT a [b...] FROM via GIVING target [target...].
+    parseSubtract()
+    {
+        const startTok = this.consume();
+
+        const sources = this.parseOperandsUntilKeyword("FROM");
+
+        if(sources.length === 0) { this.errorAt(this.peek(), "SUBTRACT requires at least one source"); }
+
+        this.expect("KEYWORD", "FROM");
+
+        const firstAfterFrom = this.parseOperand();
+
+        let from = null;
+        let targets = [];
+        let giving = false;
+
+        if(this.matchKeyword("GIVING"))
+        {
+            this.consume();
+            from = firstAfterFrom;
+            targets = this.parseIdentifiersUntilKeyword();
+            giving = true;
+        }
+        else
+        {
+            if(firstAfterFrom.kind !== "identifier")
+            {
+                this.errorAt(firstAfterFrom, "SUBTRACT FROM target must be an identifier");
+            }
+
+            targets = [firstAfterFrom, ...this.parseIdentifiersUntilKeyword()];
+        }
+
+        this.expect("PERIOD");
+
+        if(targets.length === 0) { this.errorAt(startTok, "SUBTRACT requires at least one target"); }
+
+        return { kind: "SUBTRACT", sources, from, targets, giving, line: startTok.line };
+    }
+
+    // Forms supported:
+    //   MULTIPLY x BY target [target...].
+    //   MULTIPLY x BY y GIVING target [target...].
+    parseMultiply()
+    {
+        const startTok = this.consume();
+
+        const multiplier = this.parseOperand();
+
+        this.expect("KEYWORD", "BY");
+
+        const second = this.parseOperand();
+
+        let multiplicand = null;
+        let targets = [];
+        let giving = false;
+
+        if(this.matchKeyword("GIVING"))
+        {
+            this.consume();
+            multiplicand = second;
+            targets = this.parseIdentifiersUntilKeyword();
+            giving = true;
+        }
+        else
+        {
+            if(second.kind !== "identifier")
+            {
+                this.errorAt(second, "MULTIPLY BY target must be an identifier");
+            }
+
+            targets = [second, ...this.parseIdentifiersUntilKeyword()];
+        }
+
+        this.expect("PERIOD");
+
+        if(targets.length === 0) { this.errorAt(startTok, "MULTIPLY requires at least one target"); }
+
+        return { kind: "MULTIPLY", multiplier, multiplicand, targets, giving, line: startTok.line };
+    }
+
+    // Forms supported:
+    //   DIVIDE divisor INTO target [target...].
+    //   DIVIDE divisor INTO dividend GIVING target [target...].
+    //   DIVIDE dividend BY divisor GIVING target [target...].
+    //
+    // INTO vs BY: with INTO, the first operand is the divisor (and a non-GIVING
+    // form is allowed because the second operand is both dividend and target).
+    // With BY, the first operand is the dividend, and GIVING is required because
+    // there is no implicit target to write back into.
+    parseDivide()
+    {
+        const startTok = this.consume();
+
+        const first = this.parseOperand();
+
+        const directionTok = this.consume();
+
+        if(directionTok.type !== "KEYWORD" || (directionTok.value !== "INTO" && directionTok.value !== "BY"))
+        {
+            this.errorAt(directionTok, `expected INTO or BY in DIVIDE, got ${directionTok.type} "${directionTok.value}"`);
+        }
+
+        const direction = directionTok.value;
+        const second = this.parseOperand();
+
+        let divisor = null;
+        let dividend = null;
+        let targets = [];
+        let giving = false;
+
+        if(this.matchKeyword("GIVING"))
+        {
+            this.consume();
+
+            if(direction === "INTO") { divisor = first;  dividend = second; }
+            else                     { dividend = first; divisor = second; }
+
+            targets = this.parseIdentifiersUntilKeyword();
+            giving = true;
+        }
+        else
+        {
+            if(direction === "BY")
+            {
+                this.errorAt(directionTok, "DIVIDE BY requires GIVING (use COMPUTE for in-place divide-by)");
+            }
+
+            if(second.kind !== "identifier")
+            {
+                this.errorAt(second, "DIVIDE INTO target must be an identifier");
+            }
+
+            divisor = first;
+            targets = [second, ...this.parseIdentifiersUntilKeyword()];
+        }
+
+        this.expect("PERIOD");
+
+        if(targets.length === 0) { this.errorAt(startTok, "DIVIDE requires at least one target"); }
+
+        return { kind: "DIVIDE", divisor, dividend, targets, giving, line: startTok.line };
+    }
+
+
+    // COMPUTE target = expression.
+    //
+    // The expression is captured as a token slice and handed to
+    // ExpressionEvaluator at runtime — keeps expression-grammar concerns
+    // out of the Parser (which only cares about statement boundaries) and
+    // lets Task 13's condition parsing reuse the same evaluator.
+    parseCompute()
+    {
+        const startTok = this.consume();
+
+        const targetTok = this.expect("IDENTIFIER");
+        const target = { kind: "identifier", name: targetTok.value, line: targetTok.line };
+
+        const eqTok = this.consume();
+
+        if(eqTok.type !== "OPERATOR" || eqTok.value !== "=")
+        {
+            this.errorAt(eqTok, `expected "=" in COMPUTE, got ${eqTok.type} "${eqTok.value}"`);
+        }
+
+        const expressionTokens = [];
+
+        while(true)
+        {
+            const t = this.peek();
+
+            if(t.type === "PERIOD") { this.consume(); break; }
+            if(t.type === "EOF")    { this.errorAt(t, "unexpected end of input in COMPUTE"); }
+
+            expressionTokens.push(t);
+            this.consume();
+        }
+
+        if(expressionTokens.length === 0) { this.errorAt(startTok, "COMPUTE requires an expression"); }
+
+        return { kind: "COMPUTE", target, expressionTokens, line: startTok.line };
+    }
+
+
+    /* OPERAND LISTS ***********************************************************/
+
+    parseOperandsUntilKeyword(...stopKeywords)
+    {
+        const operands = [];
+
+        while(true)
+        {
+            const t = this.peek();
+
+            if(t.type === "PERIOD" || t.type === "EOF")                       { break; }
+            if(t.type === "KEYWORD" && stopKeywords.includes(t.value))        { break; }
+
+            operands.push(this.parseOperand());
+        }
+
+        return operands;
+    }
+
+    parseIdentifiersUntilKeyword(...stopKeywords)
+    {
+        const identifiers = [];
+
+        while(true)
+        {
+            const t = this.peek();
+
+            if(t.type === "PERIOD" || t.type === "EOF")                       { break; }
+            if(t.type === "KEYWORD" && stopKeywords.includes(t.value))        { break; }
+
+            if(t.type !== "IDENTIFIER")
+            {
+                this.errorAt(t, `expected identifier, got ${t.type} "${t.value}"`);
+            }
+
+            identifiers.push({ kind: "identifier", name: t.value, line: t.line });
+            this.consume();
+        }
+
+        return identifiers;
     }
 
     parseOperand()
