@@ -12,7 +12,7 @@ import { AppViewModel } from "./app-view-model.js";
 // Format: V{plan}_{task}_{publish}. `plan` is 0 until the project ships its
 // first complete product. `task` tracks the most recently completed task in
 // PLAN.md and bumps as each one lands. `publish` resets to 0 on any change.
-const VERSION = "V0_12_0";
+const VERSION = "V0_14_0";
 
 
 class App

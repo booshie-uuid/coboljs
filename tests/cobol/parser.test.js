@@ -683,6 +683,356 @@ suite("Parser", () =>
         });
     });
 
+    suite("IF / conditions", () =>
+    {
+        test("simple compare with optional THEN", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF X = 0 THEN
+                          DISPLAY "Z".
+                      END-IF.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("IF");
+            expect(stmt.condition.kind).toBe("compare");
+            expect(stmt.condition.op).toBe("=");
+            expect(stmt.thenBody.length).toBe(1);
+            expect(stmt.elseBody.length).toBe(0);
+        });
+
+        test("THEN keyword is optional", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF X = 0
+                          DISPLAY "Z".
+                      END-IF.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("IF");
+            expect(stmt.thenBody.length).toBe(1);
+        });
+
+        test("ELSE branch captured", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF X = 0 THEN
+                          DISPLAY "Z".
+                      ELSE
+                          DISPLAY "NZ".
+                      END-IF.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.thenBody.length).toBe(1);
+            expect(stmt.elseBody.length).toBe(1);
+            expect(stmt.elseBody[0].operands[0].value).toBe("NZ");
+        });
+
+        test("AND combinator builds logical node", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF X = 0 AND Y = 0 THEN
+                          DISPLAY "BOTH".
+                      END-IF.`
+            );
+
+            const cond = program.paragraphs[0].statements[0].condition;
+
+            expect(cond.kind).toBe("logical");
+            expect(cond.op).toBe("AND");
+            expect(cond.left.kind).toBe("compare");
+            expect(cond.right.kind).toBe("compare");
+        });
+
+        test("OR combinator builds logical node", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF X = 1 OR X = 2 THEN
+                          DISPLAY "OK".
+                      END-IF.`
+            );
+
+            const cond = program.paragraphs[0].statements[0].condition;
+
+            expect(cond.kind).toBe("logical");
+            expect(cond.op).toBe("OR");
+        });
+
+        test("NOT prefix wraps in not node", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF NOT X = 0 THEN
+                          DISPLAY "NZ".
+                      END-IF.`
+            );
+
+            const cond = program.paragraphs[0].statements[0].condition;
+
+            expect(cond.kind).toBe("not");
+            expect(cond.operand.kind).toBe("compare");
+        });
+
+        test("infix NOT (X NOT = 0) wraps the comparison", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF X NOT = 0 THEN
+                          DISPLAY "NZ".
+                      END-IF.`
+            );
+
+            const cond = program.paragraphs[0].statements[0].condition;
+
+            expect(cond.kind).toBe("not");
+            expect(cond.operand.kind).toBe("compare");
+            expect(cond.operand.op).toBe("=");
+        });
+
+        test("paren expression in comparison: (X + 1) > Y", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF (X + 1) > Y THEN
+                          DISPLAY "OK".
+                      END-IF.`
+            );
+
+            const cond = program.paragraphs[0].statements[0].condition;
+
+            expect(cond.kind).toBe("compare");
+            expect(cond.op).toBe(">");
+        });
+
+        test("paren-condition: (X = 1) AND (Y = 2)", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF (X = 1) AND (Y = 2) THEN
+                          DISPLAY "OK".
+                      END-IF.`
+            );
+
+            const cond = program.paragraphs[0].statements[0].condition;
+
+            expect(cond.kind).toBe("logical");
+            expect(cond.op).toBe("AND");
+            expect(cond.left.kind).toBe("compare");
+            expect(cond.right.kind).toBe("compare");
+        });
+
+        test("nested IF inside IF", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      IF X = 0 THEN
+                          IF Y = 0 THEN
+                              DISPLAY "BOTH".
+                          END-IF
+                      END-IF.`
+            );
+
+            const outer = program.paragraphs[0].statements[0];
+
+            expect(outer.kind).toBe("IF");
+            expect(outer.thenBody.length).toBe(1);
+            expect(outer.thenBody[0].kind).toBe("IF");
+        });
+
+        test("missing END-IF throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            IF X = 0 THEN
+                                DISPLAY "Z".`)
+            ).toThrow("unexpected end of input in IF body");
+        });
+
+        test("missing comparison operator throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            IF X AND Y THEN
+                                DISPLAY "Z".
+                            END-IF.`)
+            ).toThrow("expected comparison operator");
+        });
+    });
+
+    suite("paragraphs / PERFORM", () =>
+    {
+        test("paragraph header creates a new paragraph", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      DISPLAY "A".`
+            );
+
+            // paragraphs[0] is the anonymous default; MAIN is appended.
+            expect(program.paragraphs.length).toBe(2);
+            expect(program.paragraphs[1].name).toBe("MAIN");
+            expect(program.paragraphs[1].statements.length).toBe(1);
+        });
+
+        test("statements before any header land in the anonymous paragraph", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DISPLAY "A".
+                  LATER.
+                      DISPLAY "B".`
+            );
+
+            expect(program.paragraphs.length).toBe(2);
+            expect(program.paragraphs[0].name).toBe(null);
+            expect(program.paragraphs[0].statements.length).toBe(1);
+            expect(program.paragraphs[1].name).toBe("LATER");
+            expect(program.paragraphs[1].statements.length).toBe(1);
+        });
+
+        test("duplicate paragraph name throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                        MAIN.
+                            DISPLAY "A".
+                        MAIN.
+                            DISPLAY "B".`)
+            ).toThrow(`duplicate paragraph name "MAIN"`);
+        });
+
+        test("PERFORM SIMPLE captures target", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SUB.
+                  SUB.
+                      DISPLAY "S".`
+            );
+
+            const stmt = program.paragraphs[1].statements[0];
+
+            expect(stmt.kind).toBe("PERFORM");
+            expect(stmt.form).toBe("SIMPLE");
+            expect(stmt.target).toBe("SUB");
+        });
+
+        test("PERFORM TIMES with literal count", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SUB 5 TIMES.
+                  SUB.
+                      DISPLAY "S".`
+            );
+
+            const stmt = program.paragraphs[1].statements[0];
+
+            expect(stmt.form).toBe("TIMES");
+            expect(stmt.count.kind).toBe("literal");
+            expect(stmt.count.value).toBe("5");
+        });
+
+        test("PERFORM UNTIL captures condition", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SUB UNTIL X = 0.
+                  SUB.
+                      DISPLAY "S".`
+            );
+
+            const stmt = program.paragraphs[1].statements[0];
+
+            expect(stmt.form).toBe("UNTIL");
+            expect(stmt.condition.kind).toBe("compare");
+        });
+
+        test("PERFORM VARYING captures all parts", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SUB VARYING I FROM 1 BY 1 UNTIL I > 5.
+                  SUB.
+                      DISPLAY "S".`
+            );
+
+            const stmt = program.paragraphs[1].statements[0];
+
+            expect(stmt.form).toBe("VARYING");
+            expect(stmt.varName).toBe("I");
+            expect(stmt.from.value).toBe("1");
+            expect(stmt.by.value).toBe("1");
+            expect(stmt.condition.kind).toBe("compare");
+        });
+
+        test("PERFORM with TIMES but no count throws", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                        MAIN.
+                            PERFORM SUB TIMES.
+                        SUB.
+                            DISPLAY "S".`)
+            ).toThrow("expected operand");
+        });
+    });
+
     suite("STOP RUN", () =>
     {
         test("parsed as STOP_RUN statement", () =>
@@ -718,8 +1068,8 @@ suite("Parser", () =>
                 parse(` IDENTIFICATION DIVISION.
                         PROGRAM-ID. P.
                         PROCEDURE DIVISION.
-                            PERFORM PARA.`)
-            ).toThrow(`unsupported statement "PERFORM"`);
+                            GOBACK.`)
+            ).toThrow(`unsupported statement "GOBACK"`);
         });
 
         test("non-keyword at statement start reports clearly", () =>

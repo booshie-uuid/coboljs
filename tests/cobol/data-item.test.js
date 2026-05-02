@@ -95,11 +95,9 @@ suite("DataItem", () =>
             expect(d.getNumeric()).toBe(42);
         });
 
-        test("non-numeric string becomes 0", () =>
+        test("non-numeric initial value throws", () =>
         {
-            const d = elem("9(5)", "abc");
-
-            expect(d.getNumeric()).toBe(0);
+            expect(() => elem("9(5)", "abc")).toThrow(`invalid numeric data "abc"`);
         });
 
         test("unsigned PIC drops negative sign", () =>
@@ -250,11 +248,11 @@ suite("DataItem", () =>
             expect(d.getNumeric()).toBe(12345);
         });
 
-        test("non-numeric string returns 0", () =>
+        test("non-numeric content throws", () =>
         {
             const d = elem("X(5)", "ABCDE");
 
-            expect(d.getNumeric()).toBe(0);
+            expect(() => d.getNumeric()).toThrow(`invalid numeric data`);
         });
 
         test("decimal string parses", () =>

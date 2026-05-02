@@ -1,6 +1,7 @@
 import { Program } from "./program.js";
 import { CobolSyntaxError } from "./errors.js";
 import * as Arithmetic from "./parser/arithmetic.js";
+import * as Conditions from "./parser/conditions.js";
 import * as DataDivision from "./parser/data-division.js";
 
 
@@ -14,13 +15,13 @@ import * as DataDivision from "./parser/data-division.js";
 // live in `parser/*.js` as free functions taking the Parser instance —
 // keeps each file in head-size while the supported COBOL surface grows.
 //
-// Supported surface as of Task 12:
+// Supported surface as of Task 13:
 //   * IDENTIFICATION DIVISION (program-id)
 //   * ENVIRONMENT DIVISION (skipped wholesale)
 //   * DATA DIVISION → WORKING-STORAGE SECTION (level/name/PIC/VALUE)
 //   * PROCEDURE DIVISION statements:
 //       DISPLAY, MOVE, ACCEPT, ADD, SUBTRACT, MULTIPLY, DIVIDE,
-//       COMPUTE, STOP RUN
+//       COMPUTE, IF/ELSE/END-IF, STOP RUN
 
 class Parser
 {
@@ -88,10 +89,36 @@ class Parser
 
         while(this.peek().type !== "EOF" && this.peekDivision() === null)
         {
+            if(this.isParagraphHeader())
+            {
+                const nameTok = this.consume();
+                this.consume();
+
+                if(program.paragraphs.some(p => p.name === nameTok.value))
+                {
+                    this.errorAt(nameTok, `duplicate paragraph name "${nameTok.value}"`);
+                }
+
+                program.addParagraph(nameTok.value);
+
+                continue;
+            }
+
             const statement = this.parseStatement();
 
             program.currentParagraph().addStatement(statement);
         }
+    }
+
+    // A bare IDENTIFIER followed by PERIOD at the start of a sentence is
+    // a paragraph header. Statements always start with a KEYWORD, so the
+    // disambiguation is straightforward.
+    isParagraphHeader()
+    {
+        const t1 = this.peek(0);
+        const t2 = this.peek(1);
+
+        return t1?.type === "IDENTIFIER" && t2?.type === "PERIOD";
     }
 
 
@@ -116,6 +143,8 @@ class Parser
             case "MULTIPLY": return Arithmetic.parseMultiply(this);
             case "DIVIDE":   return Arithmetic.parseDivide(this);
             case "COMPUTE":  return this.parseCompute();
+            case "IF":       return this.parseIf();
+            case "PERFORM":  return this.parsePerform();
             case "STOP":     return this.parseStopRun();
 
             default: this.errorAt(t, `unsupported statement "${t.value}"`);
@@ -245,6 +274,112 @@ class Parser
         this.expect("PERIOD");
 
         return { kind: "STOP_RUN", line: startTok.line };
+    }
+
+    // IF condition [THEN] statements [ELSE statements] END-IF [.]
+    //
+    // For Task 13 v0.1, statements inside the THEN/ELSE bodies must each
+    // terminate with a period (same form as top-level statements). The
+    // looser COBOL '85 form where the inner statements drop their periods
+    // and let END-IF terminate the whole sentence is deferred — see
+    // PLAN.md FOLLOW UP.
+    parseIf()
+    {
+        const startTok = this.consume();
+
+        const condition = Conditions.parseCondition(this);
+
+        if(this.matchKeyword("THEN")) { this.consume(); }
+
+        const thenBody = this.parseStatementsUntil("ELSE", "END-IF");
+
+        let elseBody = [];
+
+        if(this.matchKeyword("ELSE"))
+        {
+            this.consume();
+            elseBody = this.parseStatementsUntil("END-IF");
+        }
+
+        this.expect("KEYWORD", "END-IF");
+
+        // Trailing period optional — required at the end of the outer
+        // sentence, omitted on inner IFs that nest under another END-IF.
+        if(this.peek().type === "PERIOD") { this.consume(); }
+
+        return { kind: "IF", condition, thenBody, elseBody, line: startTok.line };
+    }
+
+    // Forms supported:
+    //   PERFORM <para>.
+    //   PERFORM <para> <count> TIMES.
+    //   PERFORM <para> UNTIL <cond>.
+    //   PERFORM <para> VARYING <var> FROM <op> BY <op> UNTIL <cond>.
+    parsePerform()
+    {
+        const startTok = this.consume();
+
+        const targetTok = this.expect("IDENTIFIER");
+        const target = targetTok.value;
+
+        if(this.peek().type === "PERIOD")
+        {
+            this.consume();
+
+            return { kind: "PERFORM", form: "SIMPLE", target, line: startTok.line };
+        }
+
+        if(this.matchKeyword("UNTIL"))
+        {
+            this.consume();
+            const condition = Conditions.parseCondition(this);
+            this.expect("PERIOD");
+
+            return { kind: "PERFORM", form: "UNTIL", target, condition, line: startTok.line };
+        }
+
+        if(this.matchKeyword("VARYING"))
+        {
+            this.consume();
+
+            const varTok = this.expect("IDENTIFIER");
+
+            this.expect("KEYWORD", "FROM");
+            const from = this.parseOperand();
+
+            this.expect("KEYWORD", "BY");
+            const by = this.parseOperand();
+
+            this.expect("KEYWORD", "UNTIL");
+            const condition = Conditions.parseCondition(this);
+
+            this.expect("PERIOD");
+
+            return { kind: "PERFORM", form: "VARYING", target, varName: varTok.value, from, by, condition, line: startTok.line };
+        }
+
+        const count = this.parseOperand();
+        this.expect("KEYWORD", "TIMES");
+        this.expect("PERIOD");
+
+        return { kind: "PERFORM", form: "TIMES", target, count, line: startTok.line };
+    }
+
+    parseStatementsUntil(...stopKeywords)
+    {
+        const statements = [];
+
+        while(true)
+        {
+            const t = this.peek();
+
+            if(t.type === "EOF") { this.errorAt(t, "unexpected end of input in IF body"); }
+            if(t.type === "KEYWORD" && stopKeywords.includes(t.value)) { break; }
+
+            statements.push(this.parseStatement());
+        }
+
+        return statements;
     }
 
 

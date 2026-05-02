@@ -17,20 +17,27 @@ import * as Cobol from "./modules/cobol.js";
 // col 12 (Area B).
 const INITIAL_SOURCE =
 ` IDENTIFICATION DIVISION.
- PROGRAM-ID. COMPUTE-DEMO.
+ PROGRAM-ID. PERFORM-DEMO.
 
  DATA DIVISION.
  WORKING-STORAGE SECTION.
- 01 X PIC 9(2) VALUE 4.
- 01 Y PIC 9(4)V99.
+ 01 I PIC 9(2).
+ 01 PRODUCT PIC 9(3).
 
  PROCEDURE DIVISION.
-     DISPLAY "X = " X.
-     COMPUTE Y = X ** 2 + 2 * X + 1.
-     DISPLAY "X^2 + 2X + 1 = " Y.
-     COMPUTE Y = (X + 1) * (X + 2).
-     DISPLAY "(X + 1)(X + 2) = " Y.
+ MAIN.
+     DISPLAY "MULTIPLICATION TABLE FOR 7:".
+     PERFORM PRINT-ROW VARYING I FROM 1 BY 1 UNTIL I > 10.
+     DISPLAY "DONE!".
+     PERFORM CHEER 3 TIMES.
      STOP RUN.
+
+ PRINT-ROW.
+     MULTIPLY I BY 7 GIVING PRODUCT.
+     DISPLAY I " * 7 = " PRODUCT.
+
+ CHEER.
+     DISPLAY "WHEEEE!".
 `;
 
 
@@ -83,7 +90,7 @@ class AppViewModel
         this.newProgram = this.newProgram.bind(this);
         this.run = this.run.bind(this);
 
-        this.console.writeSystem(`> COBOL.JS ${this.version} // SYNTHWAVE EDITION`);
+        this.console.writeSystem(`> COBOL.JS // ${this.version}`);
         this.console.writeSystem("> READY.");
     }
 

@@ -1,5 +1,5 @@
 import * as Pic from "./pic.js";
-import { CobolSyntaxError } from "./errors.js";
+import { CobolSyntaxError, CobolRuntimeError } from "./errors.js";
 
 
 /******************************************************************************/
@@ -69,13 +69,12 @@ class DataItem
 
     assignNumeric(value)
     {
-        let num;
+        const num = parseStrictNumber(value);
 
-        if(typeof value === "number")      { num = value; }
-        else if(typeof value === "string") { num = parseFloat(value); }
-        else                               { num = NaN; }
-
-        if(isNaN(num)) { num = 0; }
+        if(num === null)
+        {
+            throw new CobolRuntimeError(this.line, `invalid numeric data "${value}" for ${this.name}`);
+        }
 
         // Unsigned PIC silently drops a negative sign per classic COBOL.
         this.value = this.pic.signed? num: Math.abs(num);
@@ -115,9 +114,14 @@ class DataItem
 
         if(this.pic.kind === "numeric") { return this.value; }
 
-        const parsed = parseFloat(this.value);
+        const parsed = parseStrictNumber(this.value);
 
-        return isNaN(parsed)? 0: parsed;
+        if(parsed === null)
+        {
+            throw new CobolRuntimeError(this.line, `invalid numeric data "${this.value}" for ${this.name}`);
+        }
+
+        return parsed;
     }
 
     formatNumeric()
@@ -146,6 +150,27 @@ class DataItem
 
         return (this.value < 0 && this.pic.signed)? "-" + formatted: formatted;
     }
+}
+
+
+/******************************************************************************/
+/* HELPERS                                                                    */
+/******************************************************************************/
+
+// Returns the numeric value of `value`, or null if it can't be cleanly
+// interpreted. Stricter than parseFloat — partial parses like "50*2" fail.
+function parseStrictNumber(value)
+{
+    if(typeof value === "number") { return isNaN(value)? null: value; }
+    if(typeof value !== "string") { return null; }
+
+    const trimmed = value.trim();
+
+    if(trimmed === "") { return null; }
+
+    const num = Number(trimmed);
+
+    return isNaN(num)? null: num;
 }
 
 

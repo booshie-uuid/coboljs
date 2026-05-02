@@ -294,6 +294,109 @@ suite("Interpreter", () =>
             expect(out.lines[0]).toBe("WHAT IS YOUR NAME? MATT");
             expect(out.lines[1]).toBe("HELLO, MATT                ");
         });
+
+        test("non-numeric input into numeric PIC throws", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    ` IDENTIFICATION DIVISION.
+                      PROGRAM-ID. P.
+                      DATA DIVISION.
+                      WORKING-STORAGE SECTION.
+                      01 N PIC 9(3).
+                      PROCEDURE DIVISION.
+                          ACCEPT N.`,
+                    ["hello"]
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("hello")).toBe(true);
+        });
+
+        test("partial-numeric input (50*2) into numeric PIC throws", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    ` IDENTIFICATION DIVISION.
+                      PROGRAM-ID. P.
+                      DATA DIVISION.
+                      WORKING-STORAGE SECTION.
+                      01 N PIC 9(3).
+                      PROCEDURE DIVISION.
+                          ACCEPT N.`,
+                    ["50*2"]
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("50*2")).toBe(true);
+        });
+
+        test("empty input into numeric PIC throws", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    ` IDENTIFICATION DIVISION.
+                      PROGRAM-ID. P.
+                      DATA DIVISION.
+                      WORKING-STORAGE SECTION.
+                      01 N PIC 9(3).
+                      PROCEDURE DIVISION.
+                          ACCEPT N.`,
+                    [""]
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+        });
+
+        test("signed numeric input is accepted", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 N PIC S9(3).
+                  PROCEDURE DIVISION.
+                      ACCEPT N.
+                      DISPLAY N.`,
+                ["-42"]
+            );
+
+            // [0] prompt freeze, [1] DISPLAY output
+            expect(out.lines[1]).toBe("-042");
+        });
+
+        test("alphanumeric ACCEPT is unaffected by numeric validation", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 LABEL PIC X(10).
+                  PROCEDURE DIVISION.
+                      ACCEPT LABEL.
+                      DISPLAY LABEL.`,
+                ["50*2"]
+            );
+
+            expect(out.lines[1]).toBe("50*2      ");
+        });
     });
 
     suite("ADD", () =>
@@ -349,25 +452,27 @@ suite("Interpreter", () =>
             expect(out.lines).toEqual(["012"]);
         });
 
-        // Locks `numericOf`'s silent alpha→0 coercion. Same convention
-        // as DataItem.assignNumeric — non-numeric source becomes 0
-        // rather than throwing. Lifting this to a hard error is a
-        // post-v0.1 policy decision (see REVIEW notes).
-        test("alphanumeric source treated as 0", async () =>
+        test("non-numeric alpha source in arithmetic throws", async () =>
         {
-            const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 LABEL PIC X(5) VALUE "HELLO".
-                  01 N PIC 9(3) VALUE 10.
-                  PROCEDURE DIVISION.
-                      ADD LABEL TO N.
-                      DISPLAY N.`
-            );
+            let thrown = null;
 
-            expect(out.lines).toEqual(["010"]);
+            try
+            {
+                await execute(
+                    ` IDENTIFICATION DIVISION.
+                      PROGRAM-ID. P.
+                      DATA DIVISION.
+                      WORKING-STORAGE SECTION.
+                      01 LABEL PIC X(5) VALUE "HELLO".
+                      01 N PIC 9(3) VALUE 10.
+                      PROCEDURE DIVISION.
+                          ADD LABEL TO N.`
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("HELLO")).toBe(true);
         });
     });
 
@@ -725,6 +830,485 @@ suite("Interpreter", () =>
                 "A - B = 0004.00",
                 "A * B = 0096.00",
                 "A / B = 0001.50"
+            ]);
+        });
+    });
+
+    suite("IF", () =>
+    {
+        test("true branch executes", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 0.
+                  PROCEDURE DIVISION.
+                      IF X = 0 THEN
+                          DISPLAY "ZERO".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["ZERO"]);
+        });
+
+        test("false branch with no ELSE produces nothing", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 5.
+                  PROCEDURE DIVISION.
+                      IF X = 0 THEN
+                          DISPLAY "ZERO".
+                      END-IF.
+                      DISPLAY "AFTER".`
+            );
+
+            expect(out.lines).toEqual(["AFTER"]);
+        });
+
+        test("false branch with ELSE executes ELSE body", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 5.
+                  PROCEDURE DIVISION.
+                      IF X = 0 THEN
+                          DISPLAY "ZERO".
+                      ELSE
+                          DISPLAY "NONZERO".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["NONZERO"]);
+        });
+
+        test("AND combinator: both true", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 5.
+                  01 Y PIC 9(3) VALUE 5.
+                  PROCEDURE DIVISION.
+                      IF X = 5 AND Y = 5 THEN
+                          DISPLAY "BOTH".
+                      ELSE
+                          DISPLAY "NO".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["BOTH"]);
+        });
+
+        test("AND combinator: one false", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 5.
+                  01 Y PIC 9(3) VALUE 0.
+                  PROCEDURE DIVISION.
+                      IF X = 5 AND Y = 5 THEN
+                          DISPLAY "BOTH".
+                      ELSE
+                          DISPLAY "NO".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["NO"]);
+        });
+
+        test("OR combinator", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 1.
+                  PROCEDURE DIVISION.
+                      IF X = 1 OR X = 2 THEN
+                          DISPLAY "MATCH".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["MATCH"]);
+        });
+
+        test("NOT prefix inverts truth", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 5.
+                  PROCEDURE DIVISION.
+                      IF NOT X = 0 THEN
+                          DISPLAY "NZ".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["NZ"]);
+        });
+
+        test("infix NOT (X NOT = 0) treats as not-equal", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 7.
+                  PROCEDURE DIVISION.
+                      IF X NOT = 0 THEN
+                          DISPLAY "NZ".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["NZ"]);
+        });
+
+        test("comparison operators: <, >, <=, >=", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 5.
+                  PROCEDURE DIVISION.
+                      IF X < 10 THEN DISPLAY "LT". END-IF.
+                      IF X > 1  THEN DISPLAY "GT". END-IF.
+                      IF X <= 5 THEN DISPLAY "LE". END-IF.
+                      IF X >= 5 THEN DISPLAY "GE". END-IF.`
+            );
+
+            expect(out.lines).toEqual(["LT", "GT", "LE", "GE"]);
+        });
+
+        test("nested IF: inner true only when outer also true", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 0.
+                  01 Y PIC 9(3) VALUE 0.
+                  PROCEDURE DIVISION.
+                      IF X = 0 THEN
+                          IF Y = 0 THEN
+                              DISPLAY "BOTH".
+                          END-IF
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["BOTH"]);
+        });
+
+        test("STOP RUN inside IF body terminates the program", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 0.
+                  PROCEDURE DIVISION.
+                      DISPLAY "BEFORE".
+                      IF X = 0 THEN
+                          STOP RUN.
+                      END-IF.
+                      DISPLAY "AFTER".`
+            );
+
+            expect(out.lines).toEqual(["BEFORE"]);
+        });
+
+        test("expression operands in comparison", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(3) VALUE 4.
+                  PROCEDURE DIVISION.
+                      IF (X + 1) > 4 THEN
+                          DISPLAY "OK".
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["OK"]);
+        });
+    });
+
+    suite("IF-DEMO integration", () =>
+    {
+        test("score in middle range hits >50 + in-range branches", async () =>
+        {
+            const out = await execute(loadFixture("if-demo.cbl"), ["75"]);
+
+            // Prompt line + three IF outputs
+            expect(out.lines[0]).toBe("ENTER A NUMBER (1-100): 75");
+            expect(out.lines.slice(1)).toEqual([
+                "BIGGER THAN 50",
+                "IN RANGE"
+            ]);
+        });
+
+        test("score 0 hits ZERO + 50-OR-LESS + OUT-OF-RANGE", async () =>
+        {
+            const out = await execute(loadFixture("if-demo.cbl"), ["0"]);
+
+            expect(out.lines.slice(1)).toEqual([
+                "ZERO",
+                "50 OR LESS",
+                "OUT OF RANGE"
+            ]);
+        });
+    });
+
+    suite("PERFORM", () =>
+    {
+        test("SIMPLE runs target paragraph once", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SUB.
+                      STOP RUN.
+                  SUB.
+                      DISPLAY "RAN".`
+            );
+
+            expect(out.lines).toEqual(["RAN"]);
+        });
+
+        test("TIMES runs target N times", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SUB 3 TIMES.
+                      STOP RUN.
+                  SUB.
+                      DISPLAY "RAN".`
+            );
+
+            expect(out.lines).toEqual(["RAN", "RAN", "RAN"]);
+        });
+
+        test("TIMES with count 0 doesn't run the body", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SUB 0 TIMES.
+                      DISPLAY "AFTER".
+                      STOP RUN.
+                  SUB.
+                      DISPLAY "RAN".`
+            );
+
+            expect(out.lines).toEqual(["AFTER"]);
+        });
+
+        test("UNTIL stops when condition becomes true", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 N PIC 9(2) VALUE 0.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM TICK UNTIL N >= 3.
+                      STOP RUN.
+                  TICK.
+                      DISPLAY N.
+                      ADD 1 TO N.`
+            );
+
+            expect(out.lines).toEqual(["00", "01", "02"]);
+        });
+
+        test("UNTIL with initially-true condition runs zero times", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 N PIC 9(2) VALUE 5.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM TICK UNTIL N >= 3.
+                      DISPLAY "AFTER".
+                      STOP RUN.
+                  TICK.
+                      DISPLAY "RAN".`
+            );
+
+            expect(out.lines).toEqual(["AFTER"]);
+        });
+
+        test("VARYING loops with the variable tracked correctly", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC 9(2).
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SHOW VARYING I FROM 1 BY 1 UNTIL I > 4.
+                      STOP RUN.
+                  SHOW.
+                      DISPLAY I.`
+            );
+
+            expect(out.lines).toEqual(["01", "02", "03", "04"]);
+        });
+
+        test("VARYING with custom step", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC 9(2).
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SHOW VARYING I FROM 2 BY 3 UNTIL I > 10.
+                      STOP RUN.
+                  SHOW.
+                      DISPLAY I.`
+            );
+
+            expect(out.lines).toEqual(["02", "05", "08"]);
+        });
+
+        test("PERFORM unknown paragraph throws", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    ` IDENTIFICATION DIVISION.
+                      PROGRAM-ID. P.
+                      PROCEDURE DIVISION.
+                      MAIN.
+                          PERFORM MISSING.
+                          STOP RUN.`
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("MISSING")).toBe(true);
+        });
+
+        test("nested PERFORM (paragraph performs another paragraph)", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM OUTER.
+                      STOP RUN.
+                  OUTER.
+                      DISPLAY "OUTER-PRE".
+                      PERFORM INNER.
+                      DISPLAY "OUTER-POST".
+                  INNER.
+                      DISPLAY "INNER".`
+            );
+
+            expect(out.lines).toEqual(["OUTER-PRE", "INNER", "OUTER-POST"]);
+        });
+
+        test("STOP RUN inside PERFORMed paragraph terminates the program", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM HALT.
+                      DISPLAY "AFTER MAIN".
+                      STOP RUN.
+                  HALT.
+                      DISPLAY "BEFORE STOP".
+                      STOP RUN.
+                      DISPLAY "AFTER STOP".`
+            );
+
+            expect(out.lines).toEqual(["BEFORE STOP"]);
+        });
+
+        test("fall-through: paragraphs after MAIN run if no STOP RUN", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      DISPLAY "MAIN".
+                  NEXT-PARA.
+                      DISPLAY "NEXT".`
+            );
+
+            expect(out.lines).toEqual(["MAIN", "NEXT"]);
+        });
+    });
+
+    suite("PERFORM-DEMO integration", () =>
+    {
+        test("multiplication-table fixture produces full output", async () =>
+        {
+            const out = await execute(loadFixture("perform-demo.cbl"));
+
+            expect(out.lines).toEqual([
+                "MULTIPLICATION TABLE FOR 7:",
+                "01 * 7 = 007",
+                "02 * 7 = 014",
+                "03 * 7 = 021",
+                "04 * 7 = 028",
+                "05 * 7 = 035",
+                "06 * 7 = 042",
+                "07 * 7 = 049",
+                "08 * 7 = 056",
+                "09 * 7 = 063",
+                "10 * 7 = 070",
+                "DONE!",
+                "WHEEEE!",
+                "WHEEEE!",
+                "WHEEEE!"
             ]);
         });
     });

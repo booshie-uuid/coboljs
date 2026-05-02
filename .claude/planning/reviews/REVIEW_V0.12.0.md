@@ -23,7 +23,7 @@ Findings from a critical pass over the Tasks 9–12 codebase: Parser, Interprete
 
 - [*] **(M4) `lookupItem(operand)` called with a synthetic operand-shaped object** — Resolved. Split into `lookupName(name, line)` (does the actual lookup) and `lookupItem(operand)` (thin shim: `return this.lookupName(operand.name, operand.line)`). Pairs with M3 — the bound resolver in the Interpreter constructor now reads `(name, line) => this.lookupName(name, line).getNumeric()` with no synthetic operand.
 
-- [*] **(M5) `numericOf` silently coerces non-numeric strings to 0** — Resolved (test-locking only; throw-vs-zero policy deferred). Added `Interpreter > ADD > alphanumeric source treated as 0` test fixing the current behaviour. The throw-policy decision deferred to when we have more examples to inform the call (likely Task 16). The behaviour is now intentional and tested rather than incidental.
+- [*] **(M5) `numericOf` silently coerces non-numeric strings to 0** — Resolved twice. First pass (V0.12.0): test-lock the alpha→0 behaviour, defer the throw-policy decision. Reversed during Task 13 after the IF demo surfaced two cases (`l` typed at ACCEPT silently became 0; `50*2` silently became 50 via `parseFloat`'s leading-prefix parse) and the user pushed on whether the silent coercion was authentic COBOL — it isn't. Final form: `DataItem.assignNumeric`, `DataItem.getNumeric`, and `Interpreter.numericOf` use `Number()` (no partial parses) and throw `CobolRuntimeError` on invalid data. Three lock tests (DataItem × 2, Interpreter × 1) flipped from `expect(...).toBe(0)` to `expect(...).toThrow(...)`. One invariant covers MOVE / ADD / ACCEPT / VALUE alike.
 
 ## Low / cosmetic
 

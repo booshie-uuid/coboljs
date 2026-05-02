@@ -8,12 +8,19 @@ import { ExpressionEvaluator } from "./expression.js";
 
 // Walks a Program produced by the Parser, dispatching each statement and
 // emitting output to the supplied console handle. Async because ACCEPT
-// awaits the user; arithmetic and control-flow statements arrive in
-// later tasks but the dispatch pattern stays the same.
+// awaits the user.
 //
-// Control flow for Tasks 9-10 is simple: walk every paragraph in order;
-// STOP RUN returns immediately. Task 15 replaces the early-return with a
-// proper `StopRunSignal` exception so PERFORMed paragraphs can propagate.
+// STOP RUN, GOBACK, and EXIT (Task 15) unwind via `StopRunSignal` — an
+// internal exception caught at the top of `execute`. Throwing instead of
+// returning a sentinel lets the signal propagate cleanly through nested
+// IF bodies (Task 13) and PERFORMed paragraphs (Task 14) without each
+// caller having to inspect a return value.
+
+class StopRunSignal extends Error
+{
+    constructor() { super("STOP RUN"); this.name = "StopRunSignal"; }
+}
+
 
 class Interpreter
 {
@@ -31,15 +38,36 @@ class Interpreter
 
     async execute()
     {
-        for(const paragraph of this.program.paragraphs)
+        try
         {
-            for(const statement of paragraph.statements)
+            for(const paragraph of this.program.paragraphs)
             {
-                if(statement.kind === "STOP_RUN") { return; }
-
-                await this.executeStatement(statement);
+                await this.runParagraph(paragraph);
             }
         }
+        catch(error)
+        {
+            if(error instanceof StopRunSignal) { return; }
+
+            throw error;
+        }
+    }
+
+    async runParagraph(paragraph)
+    {
+        for(const statement of paragraph.statements)
+        {
+            await this.executeStatement(statement);
+        }
+    }
+
+    lookupParagraph(name, line)
+    {
+        const found = this.program.paragraphs.find(p => p.name === name);
+
+        if(!found) { throw new CobolRuntimeError(line, `paragraph "${name}" is not defined`); }
+
+        return found;
     }
 
     async executeStatement(statement)
@@ -54,6 +82,9 @@ class Interpreter
             case "MULTIPLY": return this.executeMultiply(statement);
             case "DIVIDE":   return this.executeDivide(statement);
             case "COMPUTE":  return this.executeCompute(statement);
+            case "IF":       return this.executeIf(statement);
+            case "PERFORM":  return this.executePerform(statement);
+            case "STOP_RUN": throw new StopRunSignal();
 
             default:
                 throw new CobolRuntimeError(statement.line, `unsupported statement "${statement.kind}"`);
@@ -193,6 +224,102 @@ class Interpreter
     }
 
 
+    /* PERFORM *****************************************************************/
+
+    async executePerform(statement)
+    {
+        const paragraph = this.lookupParagraph(statement.target, statement.line);
+
+        switch(statement.form)
+        {
+            case "SIMPLE":
+                await this.runParagraph(paragraph);
+                return;
+
+            case "TIMES":
+            {
+                const count = this.numericOf(statement.count);
+
+                for(let i = 0; i < count; i++) { await this.runParagraph(paragraph); }
+
+                return;
+            }
+
+            case "UNTIL":
+                while(!this.evaluateCondition(statement.condition))
+                {
+                    await this.runParagraph(paragraph);
+                }
+                return;
+
+            case "VARYING":
+            {
+                const varItem = this.lookupName(statement.varName, statement.line);
+                const byValue = this.numericOf(statement.by);
+
+                varItem.assign(this.numericOf(statement.from));
+
+                while(!this.evaluateCondition(statement.condition))
+                {
+                    await this.runParagraph(paragraph);
+                    varItem.assign(varItem.getNumeric() + byValue);
+                }
+
+                return;
+            }
+        }
+
+        throw new CobolRuntimeError(statement.line, `unknown PERFORM form "${statement.form}"`);
+    }
+
+
+    /* IF / CONDITIONS *********************************************************/
+
+    async executeIf(statement)
+    {
+        const branch = this.evaluateCondition(statement.condition)? statement.thenBody: statement.elseBody;
+
+        for(const inner of branch) { await this.executeStatement(inner); }
+    }
+
+    evaluateCondition(node)
+    {
+        switch(node.kind)
+        {
+            case "compare": return this.evaluateCompare(node);
+
+            case "logical":
+                if(node.op === "AND") { return this.evaluateCondition(node.left) && this.evaluateCondition(node.right); }
+                if(node.op === "OR")  { return this.evaluateCondition(node.left) || this.evaluateCondition(node.right); }
+                throw new CobolRuntimeError(node.line, `unknown logical op "${node.op}"`);
+
+            case "not":
+                return !this.evaluateCondition(node.operand);
+
+            default:
+                throw new CobolRuntimeError(node.line, `unknown condition kind "${node.kind}"`);
+        }
+    }
+
+    evaluateCompare(node)
+    {
+        const left  = this.evaluator.evaluate(node.left,  this.resolveNumeric);
+        const right = this.evaluator.evaluate(node.right, this.resolveNumeric);
+
+        switch(node.op)
+        {
+            case "=":  return left === right;
+            case "<":  return left <  right;
+            case ">":  return left >  right;
+            case "<=": return left <= right;
+            case ">=": return left >= right;
+
+            default:
+                throw new CobolRuntimeError(node.line, `unknown comparison op "${node.op}"`);
+        }
+    }
+
+
     /* RESOLUTION **************************************************************/
 
     resolveDisplayOf(operand)
@@ -236,9 +363,15 @@ class Interpreter
     {
         if(operand.kind === "literal")
         {
-            const parsed = parseFloat(operand.value);
+            const trimmed = String(operand.value).trim();
+            const parsed  = trimmed === ""? NaN: Number(trimmed);
 
-            return isNaN(parsed)? 0: parsed;
+            if(isNaN(parsed))
+            {
+                throw new CobolRuntimeError(operand.line, `invalid numeric data "${operand.value}"`);
+            }
+
+            return parsed;
         }
 
         if(operand.kind === "identifier")
