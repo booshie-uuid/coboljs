@@ -60,7 +60,7 @@ class DataItem
     {
         if(this.isGroup())
         {
-            throw new Error(`cannot assign to group item "${this.name}"`);
+            throw new CobolRuntimeError(this.line, `cannot assign to group item "${this.name}"`);
         }
 
         if(this.pic.kind === "numeric") { this.assignNumeric(value); }
@@ -109,7 +109,7 @@ class DataItem
     {
         if(this.isGroup())
         {
-            throw new Error(`cannot read numeric from group item "${this.name}"`);
+            throw new CobolRuntimeError(this.line, `cannot read numeric from group item "${this.name}"`);
         }
 
         if(this.pic.kind === "numeric") { return this.value; }

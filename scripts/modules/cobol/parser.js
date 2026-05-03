@@ -15,13 +15,13 @@ import * as DataDivision from "./parser/data-division.js";
 // live in `parser/*.js` as free functions taking the Parser instance —
 // keeps each file in head-size while the supported COBOL surface grows.
 //
-// Supported surface as of Task 13:
+// Supported surface:
 //   * IDENTIFICATION DIVISION (program-id)
 //   * ENVIRONMENT DIVISION (skipped wholesale)
 //   * DATA DIVISION → WORKING-STORAGE SECTION (level/name/PIC/VALUE)
-//   * PROCEDURE DIVISION statements:
-//       DISPLAY, MOVE, ACCEPT, ADD, SUBTRACT, MULTIPLY, DIVIDE,
-//       COMPUTE, IF/ELSE/END-IF, STOP RUN
+//   * PROCEDURE DIVISION paragraph headers
+//   * Statements: DISPLAY, MOVE, ACCEPT, ADD, SUBTRACT, MULTIPLY,
+//     DIVIDE, COMPUTE, IF/ELSE/END-IF, PERFORM, STOP RUN
 
 class Parser
 {
@@ -278,11 +278,10 @@ class Parser
 
     // IF condition [THEN] statements [ELSE statements] END-IF [.]
     //
-    // For Task 13 v0.1, statements inside the THEN/ELSE bodies must each
-    // terminate with a period (same form as top-level statements). The
-    // looser COBOL '85 form where the inner statements drop their periods
-    // and let END-IF terminate the whole sentence is deferred — see
-    // PLAN.md FOLLOW UP.
+    // Statements inside THEN/ELSE bodies must each terminate with a
+    // period. The looser COBOL '85 form (period-less inner statements
+    // with END-IF as implicit terminator) is recorded under PLAN.md
+    // Follow Up as "Period-less statements inside IF bodies".
     parseIf()
     {
         const startTok = this.consume();

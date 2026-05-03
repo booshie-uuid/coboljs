@@ -23,9 +23,9 @@ import { CobolSyntaxError, CobolRuntimeError } from "./errors.js";
 // `(name, line)` and returns a number — the caller emits a positioned
 // runtime error if the name is undefined. Stateless across calls (the
 // `tokens`/`pos` cursor is reset on each `evaluate`), so a single shared
-// instance can be reused — important once PERFORM-VARYING (Task 14)
-// loops over expressions. Reusable from condition parsing in Task 13:
-// comparisons evaluate two arithmetic sub-expressions.
+// instance can be reused — matters in PERFORM-VARYING loops over
+// expressions. Also called from condition parsing for the two arithmetic
+// sub-expressions of a comparison.
 
 class ExpressionEvaluator
 {

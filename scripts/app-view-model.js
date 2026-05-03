@@ -8,13 +8,14 @@ import * as Cobol from "./modules/cobol.js";
 /* PLACEHOLDER SOURCE                                                         */
 /******************************************************************************/
 
-// Replaced in Task 16 by Examples.byName("HELLO-WORLD").source.
+// Boot-time editor content. Updated each task to demo the latest
+// feature; will be replaced by an Examples lookup in Task 16.
 //
-// Indentation reflects the editor's coordinate system: the gutter visually
-// represents cols 1-6 (sequence area), so textarea col 1 is COBOL col 7
-// (indicator). One leading space keeps col 7 blank and puts division /
-// paragraph names at col 8 (Area A); five leading spaces put statements at
-// col 12 (Area B).
+// Indentation reflects the editor's coordinate system: the gutter
+// visually represents cols 1-6 (sequence area), so textarea col 1 is
+// COBOL col 7 (indicator). One leading space keeps col 7 blank and
+// puts division / paragraph names at col 8 (Area A); five leading
+// spaces put statements at col 12 (Area B).
 const INITIAL_SOURCE =
 ` IDENTIFICATION DIVISION.
  PROGRAM-ID. PERFORM-DEMO.
@@ -122,6 +123,8 @@ class AppViewModel
         }
         catch(error)
         {
+            // Surface the stack to devtools; Cobol.run already user-facing-errored.
+            console.error(error);
             this.runStatus("ERROR");
         }
     }
@@ -180,7 +183,7 @@ class AppViewModel
         {
             this.console.write("SAVE AS: ", true);
 
-            name = await this.console.prompt();
+            name = (await this.console.prompt()).trim();
 
             if(!name)
             {

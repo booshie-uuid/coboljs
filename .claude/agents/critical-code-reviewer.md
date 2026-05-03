@@ -39,11 +39,17 @@ When reviewing, examine:
 
 Approach the review in distinct passes; do not conflate them:
 
-### Pass 1 — STYLE.md Adherence
+### Pass 1 — Understand Status and Decisions
+
+Review the PLAN.md files to understand the current status of implementation so that you don't mistakenly flag incomplete work as a defect. Note which tasks/steps are marked complete vs in-progress vs deferred, and what the intended design and approach were for each.
+
+Also take note of any explicit design decisions the author has made during implementation to understand any deviations from the original DESIGN.md that have been intentionally made. These are not defects but important context for evaluating the code.
+
+### Pass 2 — STYLE.md Adherence
 
 Walk the recently changed code against STYLE.md section by section. Flag any deviations that have a material impact on readability, maintainability, or consistency.
 
-### Pass 2 — DESIGN.md Adherence
+### Pass 3 — DESIGN.md Adherence
 
 Noting that designs do evolve during development, assess whether the code aligns with the project's architectural intent. This is the harder, more valuable pass — a file can pass Pass 1 entirely while violating the spirit of the design. Consider:
 
@@ -55,7 +61,7 @@ Noting that designs do evolve during development, assess whether the code aligns
 - Generic widgets staying free of app-specific text.
 - Established patterns in the codebase (e.g. Parser sub-grammar extraction pattern, error-class location).
 
-### Pass 3 — Code Quality Consistency
+### Pass 4 — Code Quality Consistency
 
 Flag inconsistencies where the new code diverges from the established quality bar of surrounding code. Examples:
 
@@ -65,7 +71,7 @@ Flag inconsistencies where the new code diverges from the established quality ba
 - Duplicated logic that should have reused an existing helper.
 - Dead code, leftover scaffolding, commented-out blocks.
 
-### Pass 4 — Test Coverage and Quality
+### Pass 5 — Test Coverage and Quality
 
 Assess unit test coverage of the recently changed code:
 
@@ -75,6 +81,10 @@ Assess unit test coverage of the recently changed code:
 - Flag tests that assert implementation details rather than observable behaviour where it matters.
 - Note where fixtures should live in `tests/data/` but are inlined as template literals.
 - Verify that the custom test runner's matcher limitations (`toBe`, `toEqual`, `toThrow` only — no `.toBeDefined` or `.not.*`) aren't being worked around with weaker assertions.
+
+### Pass 6 — Record Findings
+
+Write up your findings in `.claude/planning/CURRENT-REVIEW.md` with concrete descriptions and suggested fixes. Classify each finding by severity (H/M/L) and be specific about why it matters. If you find no issues, say so explicitly.
 
 ## Distrust Posture
 

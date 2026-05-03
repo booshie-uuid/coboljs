@@ -6,15 +6,15 @@ import { ExpressionEvaluator } from "./expression.js";
 /* INTERPRETER                                                                */
 /******************************************************************************/
 
-// Walks a Program produced by the Parser, dispatching each statement and
-// emitting output to the supplied console handle. Async because ACCEPT
-// awaits the user.
+// Walks a Program produced by the Parser, dispatching each statement
+// and emitting output to the supplied console handle. Async because
+// ACCEPT awaits the user.
 //
-// STOP RUN, GOBACK, and EXIT (Task 15) unwind via `StopRunSignal` — an
-// internal exception caught at the top of `execute`. Throwing instead of
-// returning a sentinel lets the signal propagate cleanly through nested
-// IF bodies (Task 13) and PERFORMed paragraphs (Task 14) without each
-// caller having to inspect a return value.
+// STOP RUN unwinds via `StopRunSignal` — an internal exception caught
+// at the top of `execute`. Throwing instead of returning a sentinel
+// lets the signal propagate cleanly through nested IF bodies and
+// PERFORMed paragraphs without each caller having to inspect a return
+// value. GOBACK / EXIT will reuse the same machinery when they land.
 
 class StopRunSignal extends Error
 {

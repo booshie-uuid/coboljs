@@ -264,6 +264,29 @@ suite("Interpreter", () =>
 
             expect(out.lines).toEqual(["MATT "]);
         });
+
+        test("MOVE to a group-item target throws CobolRuntimeError", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    ` IDENTIFICATION DIVISION.
+                      PROGRAM-ID. P.
+                      DATA DIVISION.
+                      WORKING-STORAGE SECTION.
+                      01 RECORD.
+                         05 FIELD PIC X(5).
+                      PROCEDURE DIVISION.
+                          MOVE "X" TO RECORD.`
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("RECORD")).toBe(true);
+        });
     });
 
     suite("ACCEPT", () =>
@@ -1209,6 +1232,28 @@ suite("Interpreter", () =>
             );
 
             expect(out.lines).toEqual(["02", "05", "08"]);
+        });
+
+        test("VARYING with identifier FROM and BY operands", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC 9(2).
+                  01 START PIC 9(2) VALUE 4.
+                  01 STEP PIC 9(2) VALUE 2.
+                  01 LIMIT PIC 9(2) VALUE 10.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM SHOW VARYING I FROM START BY STEP UNTIL I > LIMIT.
+                      STOP RUN.
+                  SHOW.
+                      DISPLAY I.`
+            );
+
+            expect(out.lines).toEqual(["04", "06", "08", "10"]);
         });
 
         test("PERFORM unknown paragraph throws", async () =>

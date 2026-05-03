@@ -24,7 +24,6 @@ function parseAdd(parser)
 
     if(sources.length === 0) { parser.errorAt(parser.peek(), "ADD requires at least one source"); }
 
-    const next = parser.peek();
     let targets = [];
     let giving = false;
 
@@ -41,7 +40,7 @@ function parseAdd(parser)
     }
     else
     {
-        parser.errorExpected(next, "TO or GIVING in ADD");
+        parser.errorExpected(parser.peek(), "TO or GIVING in ADD");
     }
 
     parser.expect("PERIOD");
