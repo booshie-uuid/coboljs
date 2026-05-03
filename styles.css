@@ -29,6 +29,20 @@
 
 
 /******************************************************************************/
+/* ANIMATIONS                                                                 */
+/******************************************************************************/
+
+/* Block-cursor blink for the console prompt — we animate caret-color
+   on/off every second so the active input has a clear, retro pulse. */
+@keyframes blink-caret
+{
+    0%, 50%   { caret-color: var(--neon-magenta); }
+    51%, 100% { caret-color: transparent;         }
+}
+
+
+
+/******************************************************************************/
 /* BASE                                                                       */
 /******************************************************************************/
 
@@ -496,6 +510,7 @@ body
     line-height: inherit;
     white-space: pre;
     overflow: auto;
+    caret-color: var(--neon-cyan);
 
     background-image:
         linear-gradient(to right, rgba(0, 246, 255, 0.18),  rgba(0, 246, 255, 0.18)),
@@ -511,9 +526,18 @@ body
     background-origin: padding-box;
 }
 
-.editor-textarea:focus
+/* Brighten the source panel as a whole when the textarea has focus —
+   tightens the cyan border on the panel and adds an inner glow, so
+   "where am I typing" reads at a glance. */
+.editor:focus-within
 {
-    box-shadow: inset 0 0 18px rgba(0, 246, 255, 0.08);
+    box-shadow: inset 0 0 24px rgba(0, 246, 255, 0.12);
+}
+
+.panel-source:focus-within
+{
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 14px rgba(0, 246, 255, 0.55), inset 0 0 12px rgba(0, 246, 255, 0.08);
 }
 
 
@@ -587,6 +611,7 @@ body
     outline: none;
     font: inherit;
     caret-color: var(--neon-magenta);
+    animation: blink-caret 1.05s steps(2, end) infinite;
 }
 
 
