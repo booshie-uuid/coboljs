@@ -67,7 +67,17 @@
                 <button class="btn" data-bind="click: mount">SET DIR</button>
                 <button class="btn" data-bind="click: newProgram">NEW</button>
                 <button class="btn" data-bind="click: saveProgram">SAVE</button>
-                <button class="btn" disabled>EXAMPLES</button>
+                <div class="examples-wrapper" data-bind="closeOnOutsideClick: examplesOpen">
+                    <button class="btn" data-bind="click: toggleExamples, css: { 'btn-active': examplesOpen }">DEMOS</button>
+                    <ul class="examples-menu" data-bind="visible: examplesOpen, foreach: examplesList">
+                        <li class="examples-menu-item">
+                            <button class="examples-menu-btn" data-bind="click: $root.loadExample">
+                                <span class="examples-menu-name" data-bind="text: name"></span>
+                                <span class="examples-menu-desc" data-bind="text: description"></span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
                 <button class="btn btn-primary" data-bind="click: run">RUN</button>
             </div>
         </nav>

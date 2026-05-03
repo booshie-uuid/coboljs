@@ -26,7 +26,10 @@ const KEYWORDS = new Set([
     "STOP", "RUN", "GOBACK", "EXIT", "PARAGRAPH", "PROGRAM",
 
     // Conditions
-    "AND", "OR", "NOT"
+    "AND", "OR", "NOT",
+
+    // Intrinsic function call
+    "FUNCTION"
 ]);
 
 

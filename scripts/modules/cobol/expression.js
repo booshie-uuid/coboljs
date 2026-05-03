@@ -14,7 +14,8 @@ import { CobolSyntaxError, CobolRuntimeError } from "./errors.js";
 //   term       := unary (('*' | '/') unary)*
 //   unary      := ('-' | '+') unary | factor
 //   factor     := primary ('**' unary)?            // right-associative
-//   primary    := NUMBER | IDENTIFIER | '(' expression ')'
+//   primary    := NUMBER | IDENTIFIER | '(' expression ')' | functionCall
+//   functionCall := FUNCTION IDENTIFIER ('(' expression (',' expression)* ')')?
 //
 // Right-associative `**` is encoded by recursing through `unary` on the
 // right side; that also lets `2 ** -3` parse without an extra rule.
@@ -26,6 +27,17 @@ import { CobolSyntaxError, CobolRuntimeError } from "./errors.js";
 // instance can be reused — matters in PERFORM-VARYING loops over
 // expressions. Also called from condition parsing for the two arithmetic
 // sub-expressions of a comparison.
+//
+// Intrinsic functions are looked up in INTRINSICS by upper-cased name.
+// v0.1 ships numeric-in/numeric-out only (RANDOM, INTEGER, MOD); string
+// functions need a separate evaluation path and are deferred.
+
+
+const INTRINSICS = {
+    RANDOM:  { arity: 0, call: () => Math.random()                                            },
+    INTEGER: { arity: 1, call: ([x])    => Math.floor(x)                                      },
+    MOD:     { arity: 2, call: ([a, b]) => a - Math.floor(a / b) * b                          }
+};
 
 class ExpressionEvaluator
 {
@@ -125,6 +137,11 @@ class ExpressionEvaluator
             return parseFloat(t.value);
         }
 
+        if(t.type === "KEYWORD" && t.value === "FUNCTION")
+        {
+            return this.parseFunctionCall();
+        }
+
         if(t.type === "IDENTIFIER")
         {
             this.consume();
@@ -154,6 +171,61 @@ class ExpressionEvaluator
         const got = t.value === null? t.type: `${t.type} "${t.value}"`;
 
         throw new CobolSyntaxError(t.line, `expected expression, got ${got}`);
+    }
+
+    parseFunctionCall()
+    {
+        const fnTok = this.consume();
+        const nameTok = this.peek();
+
+        if(!nameTok || nameTok.type !== "IDENTIFIER")
+        {
+            throw new CobolSyntaxError(fnTok.line, "expected function name after FUNCTION");
+        }
+
+        this.consume();
+
+        const intrinsic = INTRINSICS[nameTok.value.toUpperCase()];
+
+        if(!intrinsic)
+        {
+            throw new CobolSyntaxError(nameTok.line, `unknown intrinsic function "${nameTok.value}"`);
+        }
+
+        const args = [];
+
+        // Argument list is optional — `FUNCTION RANDOM` (no parens) is a
+        // legal zero-arg call; `FUNCTION RANDOM()` would also be accepted.
+        if(this.peek()?.type === "LPAREN")
+        {
+            this.consume();
+
+            if(this.peek()?.type !== "RPAREN")
+            {
+                args.push(this.parseExpression());
+
+                while(this.peek()?.type !== "RPAREN")
+                {
+                    args.push(this.parseExpression());
+                }
+            }
+
+            const closing = this.peek();
+
+            if(!closing || closing.type !== "RPAREN")
+            {
+                throw new CobolSyntaxError(nameTok.line, `expected ')' closing FUNCTION ${nameTok.value}`);
+            }
+
+            this.consume();
+        }
+
+        if(args.length !== intrinsic.arity)
+        {
+            throw new CobolSyntaxError(nameTok.line, `FUNCTION ${nameTok.value} expects ${intrinsic.arity} argument(s), got ${args.length}`);
+        }
+
+        return intrinsic.call(args);
     }
 
 

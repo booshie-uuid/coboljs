@@ -42,7 +42,10 @@ class Lexer
         {
             const ch = line[i];
 
-            if(ch === " " || ch === "\t") { i++; continue; }
+            // COBOL treats `,` as a separator equivalent to whitespace
+            // (most commonly inside FUNCTION argument lists). Drop it
+            // here so the parser never has to know about it.
+            if(ch === " " || ch === "\t" || ch === ",") { i++; continue; }
 
             if(ch === "*" && line[i + 1] === ">") { return; }
 

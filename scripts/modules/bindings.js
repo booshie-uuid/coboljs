@@ -49,3 +49,29 @@ ko.bindingHandlers.autoScrollBottom =
         setTimeout(() => { element.scrollTop = element.scrollHeight; }, 0);
     }
 };
+
+
+/* CLOSE ON OUTSIDE CLICK *****************************************************/
+
+// Sets the bound observable to false when a click lands outside the element.
+// Used by the EXAMPLES dropdown so clicking the editor or another rail
+// button collapses the menu without each consumer wiring its own listener.
+ko.bindingHandlers.closeOnOutsideClick =
+{
+    init(element, valueAccessor)
+    {
+        const observable = valueAccessor();
+
+        const handler = (event) =>
+        {
+            if(!element.contains(event.target)) { observable(false); }
+        };
+
+        document.addEventListener("mousedown", handler);
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, () =>
+        {
+            document.removeEventListener("mousedown", handler);
+        });
+    }
+};

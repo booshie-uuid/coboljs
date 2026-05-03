@@ -20,7 +20,7 @@ async function run(source, consoleHandle)
         await new Interpreter(program, consoleHandle).execute();
 
         const elapsed = Math.round(performance.now() - start);
-        consoleHandle.writeSystem(`> PROGRAM TERMINATED NORMALLY (${elapsed}ms)`);
+        consoleHandle.writeSystem(`> PROGRAM TERMINATED NORMALLY (${elapsed.toLocaleString("en-US")}ms)`);
 
         return true;
     }

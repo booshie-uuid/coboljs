@@ -3,6 +3,7 @@
 
 import "./modules/bindings.js";
 import { AppViewModel } from "./app-view-model.js";
+import * as Examples from "./modules/examples.js";
 
 
 /******************************************************************************/
@@ -12,7 +13,7 @@ import { AppViewModel } from "./app-view-model.js";
 // Format: V{plan}_{task}_{publish}. `plan` is 0 until the project ships its
 // first complete product. `task` tracks the most recently completed task in
 // PLAN.md and bumps as each one lands. `publish` resets to 0 on any change.
-const VERSION = "V0_15_0";
+const VERSION = "V0_16_0";
 
 
 class App
@@ -23,8 +24,15 @@ class App
         this.viewModel = null;
     }
 
-    start()
+    async start()
     {
+        // Examples are fetched up front so the editor can preload the
+        // boot example and the dropdown is responsive to the first click.
+        // A fetch failure (offline dev, misconfigured server) is logged
+        // but does not block boot — the app still works without examples.
+        try { await Examples.loadAll(); }
+        catch(error) { console.error("Examples failed to load:", error); }
+
         this.viewModel = new AppViewModel(this.version);
 
         ko.applyBindings(this.viewModel);

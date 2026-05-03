@@ -2,54 +2,14 @@ import { Editor } from "./modules/editor.js";
 import { Console } from "./modules/console.js";
 import { FileIO } from "./modules/file-io.js";
 import * as Cobol from "./modules/cobol.js";
+import * as Examples from "./modules/examples.js";
 
 
 /******************************************************************************/
-/* PLACEHOLDER SOURCE                                                         */
+/* CONSTANTS                                                                  */
 /******************************************************************************/
 
-// Boot-time editor content. Updated each task to demo the latest
-// feature; will be replaced by an Examples lookup in Task 16.
-//
-// Indentation reflects the editor's coordinate system: the gutter
-// visually represents cols 1-6 (sequence area), so textarea col 1 is
-// COBOL col 7 (indicator). One leading space keeps col 7 blank and
-// puts division / paragraph names at col 8 (Area A); five leading
-// spaces put statements at col 12 (Area B).
-const INITIAL_SOURCE =
-` IDENTIFICATION DIVISION.
- PROGRAM-ID. COUNTDOWN-DEMO.
-
- DATA DIVISION.
- WORKING-STORAGE SECTION.
- 01 I PIC S9(2).
-
- PROCEDURE DIVISION.
- MAIN.
-     DISPLAY "T-MINUS...".
-     PERFORM TICK VARYING I FROM 5 BY -1 UNTIL I < 1.
-     DISPLAY "LIFTOFF!".
-     PERFORM CHEER 3 TIMES.
-     PERFORM EARLY-OUT.
-     DISPLAY "PROGRAM COMPLETE.".
-     GOBACK.
-
- TICK.
-     DISPLAY "  " I.
-
- CHEER.
-     DISPLAY "  WHEEEE!".
-
- EARLY-OUT.
-     PERFORM ABORT VARYING I FROM 1 BY 1 UNTIL I > 9.
-
- ABORT.
-     DISPLAY "  STEP " I.
-     IF I = 3
-         DISPLAY "  ABORT — EXITING LOOP EARLY!".
-         EXIT PERFORM.
-     END-IF.
-`;
+const BOOT_EXAMPLE = "HELLO-WORLD";
 
 
 /******************************************************************************/
@@ -62,7 +22,13 @@ class AppViewModel
     {
         this.version = version;
 
-        this.editor = new Editor(INITIAL_SOURCE);
+        // Editor content reflects the column-aware textarea: col 1 maps to
+        // COBOL col 7, so a leading space keeps col 7 blank and puts
+        // division / paragraph names in Area A. Boot example is loaded
+        // through the same pipeline `loadExample` uses at runtime.
+        const bootSource = Examples.byName(BOOT_EXAMPLE)?.source ?? "";
+
+        this.editor = new Editor(bootSource);
         this.console = new Console();
         this.fileIO = new FileIO();
 
@@ -95,14 +61,49 @@ class AppViewModel
 
         this.isBusy = ko.pureComputed(() => this.console.isPrompting() || this.runStatus() === "RUNNING");
 
+        this.examplesList = Examples.list();
+        this.examplesOpen = ko.observable(false);
+
         this.mount = this.mount.bind(this);
         this.loadProgram = this.loadProgram.bind(this);
         this.saveProgram = this.saveProgram.bind(this);
         this.newProgram = this.newProgram.bind(this);
         this.run = this.run.bind(this);
+        this.toggleExamples = this.toggleExamples.bind(this);
+        this.loadExample = this.loadExample.bind(this);
 
         this.console.writeSystem(`> COBOL.JS // ${this.version}`);
         this.console.writeSystem("> READY.");
+    }
+
+    toggleExamples()
+    {
+        if(this.isBusy()) { return; }
+
+        this.examplesOpen(!this.examplesOpen());
+    }
+
+    loadExample(entry)
+    {
+        if(this.isBusy()) { return; }
+
+        this.examplesOpen(false);
+
+        const example = Examples.byName(entry.name);
+
+        if(!example)
+        {
+            this.console.writeError(`! EXAMPLE "${entry.name}" NOT AVAILABLE`);
+
+            return;
+        }
+
+        this.editor.setText(example.source);
+        this.currentFileName(null);
+        this.lastSavedText(null);
+        this.runStatus("READY");
+
+        this.console.writeSystem("> LOADED EXAMPLE: " + example.name);
     }
 
     newProgram()

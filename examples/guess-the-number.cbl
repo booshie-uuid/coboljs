@@ -1,0 +1,36 @@
+ IDENTIFICATION DIVISION.
+ PROGRAM-ID. GUESS-THE-NUMBER.
+
+*> Guess the secret number between 1 and 100. Target is
+*> picked at runtime via the standard COBOL idiom
+*>   FUNCTION INTEGER(FUNCTION RANDOM * 100) + 1
+*> RANDOM returns a float in [0, 1); INTEGER truncates.
+
+ DATA DIVISION.
+ WORKING-STORAGE SECTION.
+ 01 TARGET   PIC 9(3).
+ 01 GUESS    PIC 9(3).
+ 01 ATTEMPTS PIC 9(2) VALUE 0.
+ 01 SOLVED   PIC 9    VALUE 0.
+
+ PROCEDURE DIVISION.
+ MAIN.
+     COMPUTE TARGET = FUNCTION INTEGER(FUNCTION RANDOM * 100) + 1.
+     DISPLAY "GUESS THE NUMBER (1-100):".
+     PERFORM ASK UNTIL SOLVED = 1.
+     DISPLAY "YOU GOT IT IN " ATTEMPTS " GUESSES!".
+     STOP RUN.
+
+ ASK.
+     DISPLAY "GUESS: " WITH NO ADVANCING.
+     ACCEPT GUESS.
+     ADD 1 TO ATTEMPTS.
+     IF GUESS = TARGET
+         MOVE 1 TO SOLVED.
+     ELSE
+         IF GUESS < TARGET
+             DISPLAY "TOO LOW".
+         ELSE
+             DISPLAY "TOO HIGH".
+         END-IF
+     END-IF.

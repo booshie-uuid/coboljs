@@ -113,4 +113,101 @@ suite("ExpressionEvaluator", () =>
             expect(() => evaluate("1 +")).toThrow("unexpected end");
         });
     });
+
+    suite("intrinsic functions", () =>
+    {
+        test("FUNCTION INTEGER truncates positive float toward zero", () =>
+        {
+            expect(evaluate("FUNCTION INTEGER(3.9)")).toBe(3);
+        });
+
+        test("FUNCTION INTEGER on negative goes toward minus infinity (floor)", () =>
+        {
+            expect(evaluate("FUNCTION INTEGER(-1.5)")).toBe(-2);
+        });
+
+        test("FUNCTION MOD with positive operands", () =>
+        {
+            expect(evaluate("FUNCTION MOD(7, 3)")).toBe(1);
+        });
+
+        test("FUNCTION MOD accepts space-separated args (commas optional)", () =>
+        {
+            expect(evaluate("FUNCTION MOD(10 4)")).toBe(2);
+        });
+
+        test("FUNCTION MOD with zero remainder", () =>
+        {
+            expect(evaluate("FUNCTION MOD(15, 5)")).toBe(0);
+        });
+
+        test("FUNCTION RANDOM with no parens returns float in [0, 1)", () =>
+        {
+            const original = Math.random;
+            Math.random = () => 0.5;
+            try
+            {
+                expect(evaluate("FUNCTION RANDOM")).toBe(0.5);
+            }
+            finally { Math.random = original; }
+        });
+
+        test("FUNCTION RANDOM composes with arithmetic", () =>
+        {
+            const original = Math.random;
+            Math.random = () => 0.5;
+            try
+            {
+                expect(evaluate("FUNCTION RANDOM * 100")).toBe(50);
+            }
+            finally { Math.random = original; }
+        });
+
+        test("nested FUNCTION calls (INTEGER of RANDOM * 100)", () =>
+        {
+            const original = Math.random;
+            Math.random = () => 0.419;
+            try
+            {
+                expect(evaluate("FUNCTION INTEGER(FUNCTION RANDOM * 100) + 1")).toBe(42);
+            }
+            finally { Math.random = original; }
+        });
+
+        test("function arg can be an arithmetic expression", () =>
+        {
+            expect(evaluate("FUNCTION MOD(2 + 5, 3)")).toBe(1);
+        });
+
+        test("identifier args resolve via the resolver", () =>
+        {
+            expect(evaluate("FUNCTION MOD(N, 3)", { N: 10 })).toBe(1);
+        });
+
+        test("unknown intrinsic throws clear syntax error", () =>
+        {
+            expect(() => evaluate("FUNCTION FROBNICATE(1)")).toThrow(`unknown intrinsic function "FROBNICATE"`);
+        });
+
+        test("wrong arity throws", () =>
+        {
+            expect(() => evaluate("FUNCTION MOD(7)")).toThrow("expects 2 argument(s), got 1");
+        });
+
+        test("RANDOM with explicit args throws (arity 0)", () =>
+        {
+            const original = Math.random;
+            Math.random = () => 0.5;
+            try
+            {
+                expect(() => evaluate("FUNCTION RANDOM(7)")).toThrow("expects 0 argument(s), got 1");
+            }
+            finally { Math.random = original; }
+        });
+
+        test("FUNCTION followed by non-identifier throws", () =>
+        {
+            expect(() => evaluate("FUNCTION 7")).toThrow("expected function name");
+        });
+    });
 });
