@@ -1060,6 +1060,191 @@ suite("Parser", () =>
         });
     });
 
+    suite("GOBACK", () =>
+    {
+        test("parsed as GOBACK statement", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      GOBACK.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("GOBACK");
+        });
+
+        test("GOBACK without trailing period throws syntax error", () =>
+        {
+            expect(() =>
+                parse(` IDENTIFICATION DIVISION.
+                        PROGRAM-ID. P.
+                        PROCEDURE DIVISION.
+                            GOBACK`)
+            ).toThrow(`expected PERIOD`);
+        });
+    });
+
+    suite("EXIT", () =>
+    {
+        test("bare EXIT parses as form PLAIN", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      EXIT.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("EXIT");
+            expect(stmt.form).toBe("PLAIN");
+        });
+
+        test("EXIT PARAGRAPH parses as form PARAGRAPH", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      EXIT PARAGRAPH.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("EXIT");
+            expect(stmt.form).toBe("PARAGRAPH");
+        });
+
+        test("EXIT PROGRAM parses as form PROGRAM", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      EXIT PROGRAM.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("EXIT");
+            expect(stmt.form).toBe("PROGRAM");
+        });
+
+        test("EXIT PERFORM parses as form PERFORM", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      EXIT PERFORM.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.kind).toBe("EXIT");
+            expect(stmt.form).toBe("PERFORM");
+        });
+    });
+
+    suite("signed numeric literals", () =>
+    {
+        test("DISPLAY accepts negative literal", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DISPLAY -5.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+            const operand = stmt.operands[0];
+
+            expect(operand.kind).toBe("literal");
+            expect(operand.literalType).toBe("number");
+            expect(operand.value).toBe("-5");
+        });
+
+        test("MOVE source accepts +5 (explicit positive)", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC S9(3).
+                  PROCEDURE DIVISION.
+                      MOVE +5 TO X.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.source.value).toBe("5");
+        });
+
+        test("PERFORM VARYING accepts negative BY step", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC S9(2).
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM TICK VARYING I FROM 3 BY -1 UNTIL I < 1.
+                      STOP RUN.
+                  TICK.
+                      DISPLAY I.`
+            );
+
+            const stmt = program.paragraphs[1].statements[0];
+
+            expect(stmt.form).toBe("VARYING");
+            expect(stmt.from.value).toBe("3");
+            expect(stmt.by.value).toBe("-1");
+        });
+
+        test("VALUE clause accepts negative literal", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 BALANCE PIC S9(5) VALUE -100.
+                  PROCEDURE DIVISION.
+                      DISPLAY BALANCE.`
+            );
+
+            const item = program.dataItems.get("BALANCE");
+
+            expect(item.value).toBe(-100);
+        });
+
+        test("ADD with bare negative literal as one of the sources", () =>
+        {
+            const program = parse(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC S9(3) VALUE 10.
+                  PROCEDURE DIVISION.
+                      ADD -3 TO X.`
+            );
+
+            const stmt = program.paragraphs[0].statements[0];
+
+            expect(stmt.sources.length).toBe(1);
+            expect(stmt.sources[0].value).toBe("-3");
+        });
+    });
+
     suite("statement errors", () =>
     {
         test("unsupported statement keyword reports clearly", () =>
@@ -1068,8 +1253,8 @@ suite("Parser", () =>
                 parse(` IDENTIFICATION DIVISION.
                         PROGRAM-ID. P.
                         PROCEDURE DIVISION.
-                            GOBACK.`)
-            ).toThrow(`unsupported statement "GOBACK"`);
+                            ZERO.`)
+            ).toThrow(`unsupported statement "ZERO"`);
         });
 
         test("non-keyword at statement start reports clearly", () =>

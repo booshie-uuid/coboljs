@@ -21,7 +21,7 @@ import * as DataDivision from "./parser/data-division.js";
 //   * DATA DIVISION → WORKING-STORAGE SECTION (level/name/PIC/VALUE)
 //   * PROCEDURE DIVISION paragraph headers
 //   * Statements: DISPLAY, MOVE, ACCEPT, ADD, SUBTRACT, MULTIPLY,
-//     DIVIDE, COMPUTE, IF/ELSE/END-IF, PERFORM, STOP RUN
+//     DIVIDE, COMPUTE, IF/ELSE/END-IF, PERFORM, STOP RUN, GOBACK, EXIT
 
 class Parser
 {
@@ -146,6 +146,8 @@ class Parser
             case "IF":       return this.parseIf();
             case "PERFORM":  return this.parsePerform();
             case "STOP":     return this.parseStopRun();
+            case "GOBACK":   return this.parseGoback();
+            case "EXIT":     return this.parseExit();
 
             default: this.errorAt(t, `unsupported statement "${t.value}"`);
         }
@@ -274,6 +276,35 @@ class Parser
         this.expect("PERIOD");
 
         return { kind: "STOP_RUN", line: startTok.line };
+    }
+
+    parseGoback()
+    {
+        const startTok = this.consume();
+        this.expect("PERIOD");
+
+        return { kind: "GOBACK", line: startTok.line };
+    }
+
+    // EXIT [PARAGRAPH | PROGRAM | PERFORM] .
+    //
+    // Form determines runtime behaviour: PLAIN and PROGRAM are no-ops
+    // (PROGRAM is a no-op only in main programs — meaningful once CALL
+    // / sub-programs land); PARAGRAPH unwinds the current paragraph;
+    // PERFORM unwinds the enclosing PERFORM.
+    parseExit()
+    {
+        const startTok = this.consume();
+
+        let form = "PLAIN";
+
+        if(this.matchKeyword("PARAGRAPH")) { this.consume(); form = "PARAGRAPH"; }
+        else if(this.matchKeyword("PROGRAM"))   { this.consume(); form = "PROGRAM"; }
+        else if(this.matchKeyword("PERFORM"))   { this.consume(); form = "PERFORM"; }
+
+        this.expect("PERIOD");
+
+        return { kind: "EXIT", form, line: startTok.line };
     }
 
     // IF condition [THEN] statements [ELSE statements] END-IF [.]
@@ -426,6 +457,22 @@ class Parser
 
     parseOperand()
     {
+        // Sign-prefixed numeric literal: `+`/`-` followed by NUMBER. Done
+        // here (not in the lexer) so a free-standing OPERATOR `-` is
+        // unambiguous — it's a unary sign only when an operand is expected,
+        // a binary op otherwise. The lexer has no statement-context to make
+        // that call.
+        const peeked = this.peek();
+
+        if(peeked.type === "OPERATOR" && (peeked.value === "+" || peeked.value === "-") && this.peek(1)?.type === "NUMBER")
+        {
+            const signTok = this.consume();
+            const numTok  = this.consume();
+            const value   = signTok.value === "-"? "-" + numTok.value: numTok.value;
+
+            return { kind: "literal", literalType: "number", value, line: signTok.line };
+        }
+
         const t = this.consume();
 
         if(t.type === "STRING")

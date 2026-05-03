@@ -10,15 +10,40 @@ import { ExpressionEvaluator } from "./expression.js";
 // and emitting output to the supplied console handle. Async because
 // ACCEPT awaits the user.
 //
-// STOP RUN unwinds via `StopRunSignal` — an internal exception caught
-// at the top of `execute`. Throwing instead of returning a sentinel
-// lets the signal propagate cleanly through nested IF bodies and
-// PERFORMed paragraphs without each caller having to inspect a return
-// value. GOBACK / EXIT will reuse the same machinery when they land.
+// Control-flow unwinds use internal exception classes. Throwing instead
+// of returning a sentinel lets each signal propagate cleanly through
+// nested IF bodies and PERFORMed paragraphs without every caller having
+// to inspect a return value.
+//
+//   StopRunSignal      — STOP RUN / GOBACK; caught by `execute` (whole
+//                        program halts).
+//   ExitParagraphSignal — EXIT PARAGRAPH; caught by `runParagraph`
+//                        (current paragraph ends, control returns to
+//                        whoever invoked it — the top-level walk or a
+//                        PERFORM).
+//   ExitPerformSignal  — EXIT PERFORM; caught by `executePerform`
+//                        (enclosing PERFORM returns). If thrown outside
+//                        a PERFORM it's converted to a runtime error in
+//                        `execute`.
+//
+// Bare EXIT and EXIT PROGRAM are no-ops: bare EXIT is the placeholder-
+// paragraph idiom; EXIT PROGRAM is defined as a no-op in the main
+// program (it only does work in sub-programs, which we don't yet
+// support).
 
 class StopRunSignal extends Error
 {
     constructor() { super("STOP RUN"); this.name = "StopRunSignal"; }
+}
+
+class ExitParagraphSignal extends Error
+{
+    constructor() { super("EXIT PARAGRAPH"); this.name = "ExitParagraphSignal"; }
+}
+
+class ExitPerformSignal extends Error
+{
+    constructor(line) { super("EXIT PERFORM"); this.name = "ExitPerformSignal"; this.line = line; }
 }
 
 
@@ -49,15 +74,31 @@ class Interpreter
         {
             if(error instanceof StopRunSignal) { return; }
 
+            // EXIT PERFORM that escapes its enclosing PERFORM is a usage
+            // error (statement only meaningful inside a PERFORM target).
+            if(error instanceof ExitPerformSignal)
+            {
+                throw new CobolRuntimeError(error.line, "EXIT PERFORM is only valid inside a PERFORMed paragraph");
+            }
+
             throw error;
         }
     }
 
     async runParagraph(paragraph)
     {
-        for(const statement of paragraph.statements)
+        try
         {
-            await this.executeStatement(statement);
+            for(const statement of paragraph.statements)
+            {
+                await this.executeStatement(statement);
+            }
+        }
+        catch(error)
+        {
+            if(error instanceof ExitParagraphSignal) { return; }
+
+            throw error;
         }
     }
 
@@ -85,6 +126,8 @@ class Interpreter
             case "IF":       return this.executeIf(statement);
             case "PERFORM":  return this.executePerform(statement);
             case "STOP_RUN": throw new StopRunSignal();
+            case "GOBACK":   throw new StopRunSignal();
+            case "EXIT":     return this.executeExit(statement);
 
             default:
                 throw new CobolRuntimeError(statement.line, `unsupported statement "${statement.kind}"`);
@@ -230,46 +273,66 @@ class Interpreter
     {
         const paragraph = this.lookupParagraph(statement.target, statement.line);
 
-        switch(statement.form)
+        try
         {
-            case "SIMPLE":
-                await this.runParagraph(paragraph);
-                return;
-
-            case "TIMES":
+            switch(statement.form)
             {
-                const count = this.numericOf(statement.count);
-
-                for(let i = 0; i < count; i++) { await this.runParagraph(paragraph); }
-
-                return;
-            }
-
-            case "UNTIL":
-                while(!this.evaluateCondition(statement.condition))
-                {
+                case "SIMPLE":
                     await this.runParagraph(paragraph);
-                }
-                return;
+                    return;
 
-            case "VARYING":
-            {
-                const varItem = this.lookupName(statement.varName, statement.line);
-                const byValue = this.numericOf(statement.by);
-
-                varItem.assign(this.numericOf(statement.from));
-
-                while(!this.evaluateCondition(statement.condition))
+                case "TIMES":
                 {
-                    await this.runParagraph(paragraph);
-                    varItem.assign(varItem.getNumeric() + byValue);
+                    const count = this.numericOf(statement.count);
+
+                    for(let i = 0; i < count; i++) { await this.runParagraph(paragraph); }
+
+                    return;
                 }
 
-                return;
+                case "UNTIL":
+                    while(!this.evaluateCondition(statement.condition))
+                    {
+                        await this.runParagraph(paragraph);
+                    }
+                    return;
+
+                case "VARYING":
+                {
+                    const varItem = this.lookupName(statement.varName, statement.line);
+                    const byValue = this.numericOf(statement.by);
+
+                    varItem.assign(this.numericOf(statement.from));
+
+                    while(!this.evaluateCondition(statement.condition))
+                    {
+                        await this.runParagraph(paragraph);
+                        varItem.assign(varItem.getNumeric() + byValue);
+                    }
+
+                    return;
+                }
             }
+
+            throw new CobolRuntimeError(statement.line, `unknown PERFORM form "${statement.form}"`);
         }
+        catch(error)
+        {
+            if(error instanceof ExitPerformSignal) { return; }
 
-        throw new CobolRuntimeError(statement.line, `unknown PERFORM form "${statement.form}"`);
+            throw error;
+        }
+    }
+
+
+    /* EXIT ********************************************************************/
+
+    executeExit(statement)
+    {
+        if(statement.form === "PARAGRAPH") { throw new ExitParagraphSignal(); }
+        if(statement.form === "PERFORM")   { throw new ExitPerformSignal(statement.line); }
+
+        // PLAIN and PROGRAM: no-op.
     }
 
 

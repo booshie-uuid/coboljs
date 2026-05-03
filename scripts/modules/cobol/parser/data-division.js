@@ -144,13 +144,24 @@ function parsePicString(parser)
 
 function parseValueLiteral(parser)
 {
+    const peeked = parser.peek();
+
+    if(peeked.type === "OPERATOR" && (peeked.value === "+" || peeked.value === "-") && parser.peek(1)?.type === "NUMBER")
+    {
+        const signTok = parser.consume();
+        const numTok  = parser.consume();
+        const raw     = signTok.value === "-"? "-" + numTok.value: numTok.value;
+
+        return parseFloat(raw);
+    }
+
     const t = parser.consume();
 
     if(t.type === "STRING") { return t.value; }
     if(t.type === "NUMBER") { return parseFloat(t.value); }
 
-    // Figurative constants (ZEROS, SPACES) and signed literals are
-    // deferred until an example actually needs them.
+    // Figurative constants (ZEROS, SPACES) deferred until an example
+    // actually needs them.
     parser.errorExpected(t, "literal in VALUE clause");
 }
 

@@ -1375,6 +1375,330 @@ suite("Interpreter", () =>
         });
     });
 
+    suite("GOBACK", () =>
+    {
+        test("halts execution at GOBACK", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DISPLAY "BEFORE".
+                      GOBACK.
+                      DISPLAY "AFTER".`
+            );
+
+            expect(out.lines).toEqual(["BEFORE"]);
+        });
+
+        test("GOBACK inside PERFORMed paragraph terminates the program", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      DISPLAY "MAIN".
+                      PERFORM SUB.
+                      DISPLAY "AFTER-PERFORM".
+                  SUB.
+                      DISPLAY "SUB".
+                      GOBACK.`
+            );
+
+            expect(out.lines).toEqual(["MAIN", "SUB"]);
+        });
+    });
+
+    suite("EXIT", () =>
+    {
+        test("bare EXIT is a no-op", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DISPLAY "BEFORE".
+                      EXIT.
+                      DISPLAY "AFTER".
+                      STOP RUN.`
+            );
+
+            expect(out.lines).toEqual(["BEFORE", "AFTER"]);
+        });
+
+        test("PERFORM of an EXIT-only paragraph runs and returns", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      DISPLAY "MAIN".
+                      PERFORM PLACEHOLDER.
+                      DISPLAY "AFTER-PERFORM".
+                      STOP RUN.
+                  PLACEHOLDER.
+                      EXIT.`
+            );
+
+            expect(out.lines).toEqual(["MAIN", "AFTER-PERFORM"]);
+        });
+
+        test("EXIT PROGRAM is a no-op in main program", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DISPLAY "BEFORE".
+                      EXIT PROGRAM.
+                      DISPLAY "AFTER".
+                      STOP RUN.`
+            );
+
+            expect(out.lines).toEqual(["BEFORE", "AFTER"]);
+        });
+
+        test("EXIT PARAGRAPH skips remaining statements in current paragraph", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      DISPLAY "MAIN-1".
+                      PERFORM SUB.
+                      DISPLAY "MAIN-2".
+                      STOP RUN.
+                  SUB.
+                      DISPLAY "SUB-1".
+                      EXIT PARAGRAPH.
+                      DISPLAY "SUB-2".`
+            );
+
+            expect(out.lines).toEqual(["MAIN-1", "SUB-1", "MAIN-2"]);
+        });
+
+        test("EXIT PARAGRAPH at top level falls through to next paragraph", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      DISPLAY "M-1".
+                      EXIT PARAGRAPH.
+                      DISPLAY "M-2".
+                  NEXT-PARA.
+                      DISPLAY "NEXT".
+                      STOP RUN.`
+            );
+
+            expect(out.lines).toEqual(["M-1", "NEXT"]);
+        });
+
+        test("EXIT PARAGRAPH inside an IF body unwinds the paragraph", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC 9(2) VALUE 5.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      DISPLAY "M-1".
+                      PERFORM SUB.
+                      DISPLAY "M-2".
+                      STOP RUN.
+                  SUB.
+                      DISPLAY "S-1".
+                      IF X > 0
+                          EXIT PARAGRAPH.
+                      END-IF.
+                      DISPLAY "S-2".`
+            );
+
+            expect(out.lines).toEqual(["M-1", "S-1", "M-2"]);
+        });
+
+        test("EXIT PERFORM breaks out of UNTIL loop", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC 9(2) VALUE 0.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM STEP UNTIL I > 99.
+                      DISPLAY "AFTER".
+                      STOP RUN.
+                  STEP.
+                      ADD 1 TO I.
+                      DISPLAY I.
+                      IF I = 3
+                          EXIT PERFORM.
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["01", "02", "03", "AFTER"]);
+        });
+
+        test("EXIT PERFORM breaks out of TIMES loop", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC 9(2) VALUE 0.
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM STEP 10 TIMES.
+                      DISPLAY "AFTER".
+                      STOP RUN.
+                  STEP.
+                      ADD 1 TO I.
+                      DISPLAY I.
+                      IF I = 2
+                          EXIT PERFORM.
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["01", "02", "AFTER"]);
+        });
+
+        test("EXIT PERFORM breaks out of VARYING loop", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC 9(2).
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM STEP VARYING I FROM 1 BY 1 UNTIL I > 10.
+                      DISPLAY "AFTER".
+                      STOP RUN.
+                  STEP.
+                      DISPLAY I.
+                      IF I = 4
+                          EXIT PERFORM.
+                      END-IF.`
+            );
+
+            expect(out.lines).toEqual(["01", "02", "03", "04", "AFTER"]);
+        });
+
+        test("EXIT PERFORM at top level (outside PERFORM) throws runtime error", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    ` IDENTIFICATION DIVISION.
+                      PROGRAM-ID. P.
+                      PROCEDURE DIVISION.
+                          EXIT PERFORM.`
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("EXIT PERFORM")).toBe(true);
+        });
+    });
+
+    suite("signed numeric literals", () =>
+    {
+        test("MOVE -5 stores negative value", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC S9(3).
+                  PROCEDURE DIVISION.
+                      MOVE -5 TO X.
+                      DISPLAY X.
+                      STOP RUN.`
+            );
+
+            expect(out.lines).toEqual(["-005"]);
+        });
+
+        test("ADD with negative literal subtracts", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 X PIC S9(3) VALUE 10.
+                  PROCEDURE DIVISION.
+                      ADD -3 TO X.
+                      DISPLAY X.
+                      STOP RUN.`
+            );
+
+            expect(out.lines).toEqual(["007"]);
+        });
+
+        test("PERFORM VARYING counts down with negative BY step", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 I PIC S9(2).
+                  PROCEDURE DIVISION.
+                  MAIN.
+                      PERFORM TICK VARYING I FROM 3 BY -1 UNTIL I < 1.
+                      STOP RUN.
+                  TICK.
+                      DISPLAY I.`
+            );
+
+            expect(out.lines).toEqual(["03", "02", "01"]);
+        });
+
+        test("VALUE -100 initializes with negative", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  DATA DIVISION.
+                  WORKING-STORAGE SECTION.
+                  01 BALANCE PIC S9(5) VALUE -100.
+                  PROCEDURE DIVISION.
+                      DISPLAY BALANCE.
+                      STOP RUN.`
+            );
+
+            expect(out.lines).toEqual(["-00100"]);
+        });
+
+        test("DISPLAY of bare negative literal", async () =>
+        {
+            const out = await execute(
+                ` IDENTIFICATION DIVISION.
+                  PROGRAM-ID. P.
+                  PROCEDURE DIVISION.
+                      DISPLAY -7.
+                      STOP RUN.`
+            );
+
+            expect(out.lines).toEqual(["-7"]);
+        });
+    });
+
     suite("integration", () =>
     {
         test("HELLO-WORLD fixture runs end to end", async () =>

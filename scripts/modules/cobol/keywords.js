@@ -23,7 +23,7 @@ const KEYWORDS = new Set([
     // Control flow
     "IF", "THEN", "ELSE", "END-IF",
     "PERFORM", "TIMES", "UNTIL", "VARYING",
-    "STOP", "RUN", "GOBACK", "EXIT",
+    "STOP", "RUN", "GOBACK", "EXIT", "PARAGRAPH", "PROGRAM",
 
     // Conditions
     "AND", "OR", "NOT"
