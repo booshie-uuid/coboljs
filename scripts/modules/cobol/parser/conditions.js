@@ -2,7 +2,7 @@
 /* CONDITION PARSER                                                           */
 /******************************************************************************/
 
-// Builds a condition tree for IF / EVALUATE / PERFORM-UNTIL. The grammar:
+// Builds a condition tree for IF and PERFORM-UNTIL. The grammar:
 //
 //   condition := orCond
 //   orCond    := andCond (OR andCond)*

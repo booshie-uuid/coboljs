@@ -17,7 +17,7 @@ Code blocks and tables are exempt.
 
 ### Bump `VERSION` in scripts/app.js after each task lands
 
-Format: `V{plan}_{task}_{publish}`. `plan` stays `0` until the project ships its first complete product. `task` tracks the most recently completed task in `PLAN.md` (currently we're at `V0_8_0`). `publish` resets to `0` on any change.
+Format: `V{plan}_{task}_{release}`. `plan` is the current plan number. `task` is the most recently completed task within the current plan. `release` resets to `0` whenever `task` changes.
 
 The constant lives at the top of `scripts/app.js` and propagates from there: `App` reads `VERSION` into `this.version`, passes it to `AppViewModel`, which uses it for both the header tag (`data-bind="text: '// ' + version"`) and the boot banner (`> COBOL.JS ${this.version} ...`). One source of truth — never duplicate the literal.
 

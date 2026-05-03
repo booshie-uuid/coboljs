@@ -71,10 +71,17 @@ class AppViewModel
         this.run = this.run.bind(this);
         this.toggleExamples = this.toggleExamples.bind(this);
         this.loadExample = this.loadExample.bind(this);
-        this.clearConsole = () => this.console.clear();
+        this.clearConsole = this.clearConsole.bind(this);
 
         this.console.writeSystem(`> COBOL.JS // ${this.version}`);
         this.console.writeSystem("> READY.");
+    }
+
+    clearConsole()
+    {
+        if(this.isBusy()) { return; }
+
+        this.console.clear();
     }
 
     toggleExamples()

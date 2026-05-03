@@ -10,9 +10,10 @@ import * as Examples from "./modules/examples.js";
 /* APP SINGLETON                                                              */
 /******************************************************************************/
 
-// Format: V{plan}_{task}_{publish}.
-// {task} tracks progress against current plan and resets to 0 with each new plan.
-// {release} is reset to 0 when {task} changes.
+// Format: V{plan}_{task}_{release}.
+// {plan}    — the current plan number.
+// {task}    — the most recently completed task within the current plan.
+// {release} — resets to 0 whenever {task} changes.
 const VERSION = "V0_17_0";
 
 

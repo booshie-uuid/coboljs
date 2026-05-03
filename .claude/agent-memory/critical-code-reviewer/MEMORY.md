@@ -1,8 +1,7 @@
 - [User and project context](project_context.md) — coboljs is a COBOL-in-browser emulator; STYLE.md + CLAUDE.md are authoritative for all code decisions
 - [Named imports vs namespace imports](feedback_import_style.md) — named imports for classes are accepted; namespace imports required for free-function modules only
 - [Stale task-reference comments are a recurring pattern](feedback_stale_comments.md) — "as of Task N" / "Task N's job" comments go stale as tasks complete; flag them
-- [Group-item errors use plain Error, not CobolRuntimeError](project_group_item_errors.md) — known inconsistency; surfaces as INTERNAL ERROR in UI; not yet fixed
-- [Internal error re-throw is silently swallowed by AppViewModel.run()](project_internal_error_swallow.md) — Cobol.run() re-throws, but app-view-model catch() catches and doesn't re-throw; dev loses stack trace
-- [Interpreter test fixtures: 65 inline COBOL programs](feedback_inline_fixtures.md) — interpreter.test.js has 65 inline COBOL programs; not violating CLAUDE.md since only multi-line programs that would be indent-sensitive belong in tests/data/
-- [EXAMPLES button intentionally unwired until Task 16](project_examples_button.md) — dead click target by design; not a bug
-- [GOBACK / EXIT: lexed as keywords, not yet parsed](project_goback_exit_gap.md) — Task 15 is still open; GOBACK/EXIT appear in keywords.js and comments but the parser will throw "unsupported statement" if encountered
+- [Group-item errors — RESOLVED V0.14.0](project_group_item_errors.md) — both DataItem.assign() and getNumeric() now throw CobolRuntimeError; locked by interpreter test
+- [Internal error swallow — RESOLVED V0.14.0](project_internal_error_swallow.md) — AppViewModel.run() now calls console.error(error) to surface stack to devtools
+- [Interpreter test fixtures: inline COBOL programs](feedback_inline_fixtures.md) — interpreter.test.js uses loadFixture for all multi-line programs; correctly placed in tests/data/
+- [Examples module and DUNGEON-DICE: V0.17.0](project_v017_state.md) — Examples dropdown fully wired; 7 example programs; clearConsole missing isBusy guard (H1)

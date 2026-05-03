@@ -226,25 +226,16 @@ class ExpressionEvaluator
 
         // Argument list is optional — `FUNCTION RANDOM` (no parens) is a
         // legal zero-arg call; `FUNCTION RANDOM()` would also be accepted.
+        // Args are read as adjacent expressions: `,` is dropped by the
+        // lexer (see lexer.js), so `FUNCTION MOD(7, 3)` and
+        // `FUNCTION MOD(7 3)` produce the same token stream.
         if(this.peek()?.type === "LPAREN")
         {
             this.consume();
 
-            if(this.peek()?.type !== "RPAREN")
+            while(this.peek()?.type !== "RPAREN")
             {
                 args.push(this.parseExpression());
-
-                while(this.peek()?.type !== "RPAREN")
-                {
-                    args.push(this.parseExpression());
-                }
-            }
-
-            const closing = this.peek();
-
-            if(!closing || closing.type !== "RPAREN")
-            {
-                throw new CobolSyntaxError(nameTok.line, `expected ')' closing FUNCTION ${nameTok.value}`);
             }
 
             this.consume();

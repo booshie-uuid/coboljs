@@ -127,8 +127,8 @@ class DataItem
     formatNumeric()
     {
         const total = this.pic.length + this.pic.decimalLength;
-        const max = Math.pow(10, total);
-        const scale = Math.pow(10, this.pic.decimalLength);
+        const max = 10 ** total;
+        const scale = 10 ** this.pic.decimalLength;
 
         const absScaled = Math.abs(Math.trunc(this.value * scale));
         const truncated = absScaled % max;

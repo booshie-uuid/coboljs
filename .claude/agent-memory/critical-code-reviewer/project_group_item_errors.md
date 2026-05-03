@@ -1,16 +1,9 @@
 ---
-name: DataItem group-item errors use plain Error not CobolRuntimeError
-description: assign() and getNumeric() on group items throw plain Error, which surfaces as INTERNAL ERROR in the UI instead of a clean runtime error message
+name: DataItem group-item errors — RESOLVED in V0.14.0
+description: Was: assign() and getNumeric() on group items threw plain Error. Fixed in V0.14.0 — both now throw CobolRuntimeError(this.line, ...).
 type: project
 ---
 
-`data-item.js` `DataItem.assign()` (line ~62) and `DataItem.getNumeric()` (line ~110) throw `new Error(...)` (not `CobolRuntimeError`) when called on group items. When these errors propagate through `cobol.js`, they hit the generic handler:
-```js
-consoleHandle.writeError(`! INTERNAL ERROR: ${error.message}`);
-throw error;  // re-thrown to devtools
-```
-...instead of the clean `! RUNTIME ERROR LINE N: msg` path.
+RESOLVED. Both `DataItem.assign()` and `DataItem.getNumeric()` now throw `CobolRuntimeError(this.line, ...)` when called on group items. Confirmed in V0.17.0 review — the code at data-item.js lines 63 and 112 is correct. An interpreter-level test (`MOVE to a group-item target throws CobolRuntimeError`) was added to lock the channel.
 
-This is a known inconsistency as of the V0.14.0 review (2026-05-03). Not yet fixed. The correct fix is to use `CobolRuntimeError(this.line, ...)` in both places.
-
-**How to apply:** flag in future reviews if the group-item error type is changed or if similar plain-Error throws appear in DataItem. Also watch for tests that assume INTERNAL ERROR output when they should get RUNTIME ERROR.
+**Why:** was flagged as H2 in V0.14.0 review; plain Error surfaced as INTERNAL ERROR in the UI instead of `! RUNTIME ERROR LINE N:`.

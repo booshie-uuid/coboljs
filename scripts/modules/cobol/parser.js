@@ -34,6 +34,8 @@ import * as DataDivision from "./parser/data-division.js";
 // Statement-internal keywords (WITH, NO, ADVANCING, TO, BY, FROM,
 // GIVING, TIMES, UNTIL, VARYING, THEN, RUN, PARAGRAPH, PROGRAM, FUNCTION,
 // AND, OR, NOT, RANDOM-named functions etc.) are deliberately excluded.
+// Note: STOP is in the set but RUN is not — STOP acts as the boundary,
+// then `parseStopRun` consumes RUN as a fixed second token.
 const STATEMENT_BOUNDARY_KEYWORDS = new Set([
     "DISPLAY", "MOVE", "ACCEPT",
     "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "COMPUTE",
