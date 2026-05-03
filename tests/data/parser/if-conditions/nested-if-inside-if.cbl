@@ -1,0 +1,8 @@
+ IDENTIFICATION DIVISION.
+ PROGRAM-ID. P.
+ PROCEDURE DIVISION.
+     IF X = 0 THEN
+         IF Y = 0 THEN
+             DISPLAY "BOTH".
+         END-IF
+     END-IF.

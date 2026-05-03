@@ -69,10 +69,7 @@ suite("Interpreter", () =>
         test("single literal prints to console", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "HELLO, WORLD!".`
+                loadFixture("interpreter/display/single-literal-prints-to-console.cbl")
             );
 
             expect(out.lines).toEqual(["HELLO, WORLD!"]);
@@ -81,10 +78,7 @@ suite("Interpreter", () =>
         test("multiple operands concatenate on one line", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "A" "B" "C".`
+                loadFixture("interpreter/display/multiple-operands-concatenate-on-one-line.cbl")
             );
 
             expect(out.lines).toEqual(["ABC"]);
@@ -93,10 +87,7 @@ suite("Interpreter", () =>
         test("numeric literal renders as text", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY 42.`
+                loadFixture("interpreter/display/numeric-literal-renders-as-text.cbl")
             );
 
             expect(out.lines).toEqual(["42"]);
@@ -105,11 +96,7 @@ suite("Interpreter", () =>
         test("multiple DISPLAY statements produce multiple lines", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "ONE".
-                      DISPLAY "TWO".`
+                loadFixture("interpreter/display/multiple-display-statements-produce-multiple-lines.cbl")
             );
 
             expect(out.lines).toEqual(["ONE", "TWO"]);
@@ -118,11 +105,7 @@ suite("Interpreter", () =>
         test("WITH NO ADVANCING buffers until next write", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "A: " WITH NO ADVANCING.
-                      DISPLAY "B".`
+                loadFixture("interpreter/display/with-no-advancing-buffers-until-next-write.cbl")
             );
 
             expect(out.lines).toEqual(["A: B"]);
@@ -135,10 +118,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      PROCEDURE DIVISION.
-                          DISPLAY MISSING.`
+                    loadFixture("interpreter/display/undefined-identifier-throws-cobolruntimeerror.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -150,13 +130,7 @@ suite("Interpreter", () =>
         test("identifier operand renders via DataItem.getDisplay", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 GREETING PIC X(10) VALUE "HI".
-                  PROCEDURE DIVISION.
-                      DISPLAY GREETING.`
+                loadFixture("interpreter/display/identifier-operand-renders-via-dataitem-getdisplay.cbl")
             );
 
             // Padded to PIC width — authentic COBOL behaviour.
@@ -166,13 +140,7 @@ suite("Interpreter", () =>
         test("numeric identifier displays formatted by PIC", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 COUNTER PIC 9(3) VALUE 7.
-                  PROCEDURE DIVISION.
-                      DISPLAY COUNTER.`
+                loadFixture("interpreter/display/numeric-identifier-displays-formatted-by-pic.cbl")
             );
 
             expect(out.lines).toEqual(["007"]);
@@ -181,15 +149,7 @@ suite("Interpreter", () =>
         test("group display concatenates children", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 RECORD.
-                     05 FIRST PIC X(3) VALUE "ABC".
-                     05 SECOND PIC X(2) VALUE "XY".
-                  PROCEDURE DIVISION.
-                      DISPLAY RECORD.`
+                loadFixture("interpreter/display/group-display-concatenates-children.cbl")
             );
 
             expect(out.lines).toEqual(["ABCXY"]);
@@ -201,14 +161,7 @@ suite("Interpreter", () =>
         test("literal to single target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3).
-                  PROCEDURE DIVISION.
-                      MOVE 42 TO X.
-                      DISPLAY X.`
+                loadFixture("interpreter/move/literal-to-single-target.cbl")
             );
 
             expect(out.lines).toEqual(["042"]);
@@ -217,16 +170,7 @@ suite("Interpreter", () =>
         test("literal to multiple targets", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(2).
-                  01 B PIC 9(2).
-                  01 C PIC 9(2).
-                  PROCEDURE DIVISION.
-                      MOVE 7 TO A B C.
-                      DISPLAY A B C.`
+                loadFixture("interpreter/move/literal-to-multiple-targets.cbl")
             );
 
             expect(out.lines).toEqual(["070707"]);
@@ -235,15 +179,7 @@ suite("Interpreter", () =>
         test("identifier source copies value", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 SRC PIC 9(3) VALUE 12.
-                  01 DEST PIC 9(3).
-                  PROCEDURE DIVISION.
-                      MOVE SRC TO DEST.
-                      DISPLAY DEST.`
+                loadFixture("interpreter/move/identifier-source-copies-value.cbl")
             );
 
             expect(out.lines).toEqual(["012"]);
@@ -252,14 +188,7 @@ suite("Interpreter", () =>
         test("string literal to alphanumeric target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 NAME PIC X(5).
-                  PROCEDURE DIVISION.
-                      MOVE "MATT" TO NAME.
-                      DISPLAY NAME.`
+                loadFixture("interpreter/move/string-literal-to-alphanumeric-target.cbl")
             );
 
             expect(out.lines).toEqual(["MATT "]);
@@ -272,14 +201,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 RECORD.
-                         05 FIELD PIC X(5).
-                      PROCEDURE DIVISION.
-                          MOVE "X" TO RECORD.`
+                    loadFixture("interpreter/move/move-to-a-group-item-target-throws-cobolruntimeerror.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -294,14 +216,7 @@ suite("Interpreter", () =>
         test("assigns prompted value into target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 USER-NAME PIC X(10).
-                  PROCEDURE DIVISION.
-                      ACCEPT USER-NAME.
-                      DISPLAY USER-NAME.`,
+                loadFixture("interpreter/accept/assigns-prompted-value-into-target.cbl"),
                 ["MATT"]
             );
 
@@ -325,13 +240,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 N PIC 9(3).
-                      PROCEDURE DIVISION.
-                          ACCEPT N.`,
+                    loadFixture("interpreter/accept/non-numeric-input-into-numeric-pic-throws.cbl"),
                     ["hello"]
                 );
             }
@@ -348,13 +257,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 N PIC 9(3).
-                      PROCEDURE DIVISION.
-                          ACCEPT N.`,
+                    loadFixture("interpreter/accept/partial-numeric-input-50-2-into-numeric-pic-throws.cbl"),
                     ["50*2"]
                 );
             }
@@ -371,13 +274,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 N PIC 9(3).
-                      PROCEDURE DIVISION.
-                          ACCEPT N.`,
+                    loadFixture("interpreter/accept/empty-input-into-numeric-pic-throws.cbl"),
                     [""]
                 );
             }
@@ -389,14 +286,7 @@ suite("Interpreter", () =>
         test("signed numeric input is accepted", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 N PIC S9(3).
-                  PROCEDURE DIVISION.
-                      ACCEPT N.
-                      DISPLAY N.`,
+                loadFixture("interpreter/accept/signed-numeric-input-is-accepted.cbl"),
                 ["-42"]
             );
 
@@ -407,14 +297,7 @@ suite("Interpreter", () =>
         test("alphanumeric ACCEPT is unaffected by numeric validation", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 LABEL PIC X(10).
-                  PROCEDURE DIVISION.
-                      ACCEPT LABEL.
-                      DISPLAY LABEL.`,
+                loadFixture("interpreter/accept/alphanumeric-accept-is-unaffected-by-numeric-validation.cbl"),
                 ["50*2"]
             );
 
@@ -427,14 +310,7 @@ suite("Interpreter", () =>
         test("in-place adds source to target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 10.
-                  PROCEDURE DIVISION.
-                      ADD 5 TO X.
-                      DISPLAY X.`
+                loadFixture("interpreter/add/in-place-adds-source-to-target.cbl")
             );
 
             expect(out.lines).toEqual(["015"]);
@@ -443,15 +319,7 @@ suite("Interpreter", () =>
         test("multi-source TO multi-target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(3) VALUE 10.
-                  01 B PIC 9(3) VALUE 20.
-                  PROCEDURE DIVISION.
-                      ADD 1 2 TO A B.
-                      DISPLAY A " " B.`
+                loadFixture("interpreter/add/multi-source-to-multi-target.cbl")
             );
 
             expect(out.lines).toEqual(["013 023"]);
@@ -460,16 +328,7 @@ suite("Interpreter", () =>
         test("GIVING replaces target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(3) VALUE 5.
-                  01 B PIC 9(3) VALUE 7.
-                  01 C PIC 9(3) VALUE 99.
-                  PROCEDURE DIVISION.
-                      ADD A B GIVING C.
-                      DISPLAY C.`
+                loadFixture("interpreter/add/giving-replaces-target.cbl")
             );
 
             expect(out.lines).toEqual(["012"]);
@@ -482,14 +341,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 LABEL PIC X(5) VALUE "HELLO".
-                      01 N PIC 9(3) VALUE 10.
-                      PROCEDURE DIVISION.
-                          ADD LABEL TO N.`
+                    loadFixture("interpreter/add/non-numeric-alpha-source-in-arithmetic-throws.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -504,14 +356,7 @@ suite("Interpreter", () =>
         test("in-place subtracts from target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 10.
-                  PROCEDURE DIVISION.
-                      SUBTRACT 3 FROM X.
-                      DISPLAY X.`
+                loadFixture("interpreter/subtract/in-place-subtracts-from-target.cbl")
             );
 
             expect(out.lines).toEqual(["007"]);
@@ -520,16 +365,7 @@ suite("Interpreter", () =>
         test("FROM-via-GIVING reads from but does not modify it", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(3) VALUE 20.
-                  01 B PIC 9(3) VALUE 5.
-                  01 C PIC 9(3).
-                  PROCEDURE DIVISION.
-                      SUBTRACT B FROM A GIVING C.
-                      DISPLAY A " " B " " C.`
+                loadFixture("interpreter/subtract/from-via-giving-reads-from-but-does-not-modify-it.cbl")
             );
 
             expect(out.lines).toEqual(["020 005 015"]);
@@ -538,14 +374,7 @@ suite("Interpreter", () =>
         test("multiple sources sum then subtract", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 50.
-                  PROCEDURE DIVISION.
-                      SUBTRACT 10 5 FROM X.
-                      DISPLAY X.`
+                loadFixture("interpreter/subtract/multiple-sources-sum-then-subtract.cbl")
             );
 
             expect(out.lines).toEqual(["035"]);
@@ -554,15 +383,7 @@ suite("Interpreter", () =>
         test("in-place applies to multiple targets", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(3) VALUE 30.
-                  01 B PIC 9(3) VALUE 40.
-                  PROCEDURE DIVISION.
-                      SUBTRACT 5 FROM A B.
-                      DISPLAY A " " B.`
+                loadFixture("interpreter/subtract/in-place-applies-to-multiple-targets.cbl")
             );
 
             expect(out.lines).toEqual(["025 035"]);
@@ -574,14 +395,7 @@ suite("Interpreter", () =>
         test("in-place multiplies target", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 4.
-                  PROCEDURE DIVISION.
-                      MULTIPLY 5 BY X.
-                      DISPLAY X.`
+                loadFixture("interpreter/multiply/in-place-multiplies-target.cbl")
             );
 
             expect(out.lines).toEqual(["020"]);
@@ -590,15 +404,7 @@ suite("Interpreter", () =>
         test("in-place applies to multiple targets", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(3) VALUE 3.
-                  01 B PIC 9(3) VALUE 4.
-                  PROCEDURE DIVISION.
-                      MULTIPLY 2 BY A B.
-                      DISPLAY A " " B.`
+                loadFixture("interpreter/multiply/in-place-applies-to-multiple-targets.cbl")
             );
 
             expect(out.lines).toEqual(["006 008"]);
@@ -607,16 +413,7 @@ suite("Interpreter", () =>
         test("GIVING form", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(2) VALUE 6.
-                  01 B PIC 9(2) VALUE 7.
-                  01 C PIC 9(3).
-                  PROCEDURE DIVISION.
-                      MULTIPLY A BY B GIVING C.
-                      DISPLAY C.`
+                loadFixture("interpreter/multiply/giving-form.cbl")
             );
 
             expect(out.lines).toEqual(["042"]);
@@ -628,14 +425,7 @@ suite("Interpreter", () =>
         test("INTO in-place: target = target / divisor", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 20.
-                  PROCEDURE DIVISION.
-                      DIVIDE 5 INTO X.
-                      DISPLAY X.`
+                loadFixture("interpreter/divide/into-in-place-target-target-divisor.cbl")
             );
 
             expect(out.lines).toEqual(["004"]);
@@ -644,15 +434,7 @@ suite("Interpreter", () =>
         test("INTO in-place applies to multiple targets", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 A PIC 9(3) VALUE 12.
-                  01 B PIC 9(3) VALUE 30.
-                  PROCEDURE DIVISION.
-                      DIVIDE 2 INTO A B.
-                      DISPLAY A " " B.`
+                loadFixture("interpreter/divide/into-in-place-applies-to-multiple-targets.cbl")
             );
 
             expect(out.lines).toEqual(["006 015"]);
@@ -661,14 +443,7 @@ suite("Interpreter", () =>
         test("INTO + GIVING: result = dividend / divisor", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 RESULT PIC 9(3).
-                  PROCEDURE DIVISION.
-                      DIVIDE 4 INTO 20 GIVING RESULT.
-                      DISPLAY RESULT.`
+                loadFixture("interpreter/divide/into-giving-result-dividend-divisor.cbl")
             );
 
             expect(out.lines).toEqual(["005"]);
@@ -677,14 +452,7 @@ suite("Interpreter", () =>
         test("BY + GIVING: result = dividend / divisor", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 RESULT PIC 9(3)V99.
-                  PROCEDURE DIVISION.
-                      DIVIDE 7 BY 2 GIVING RESULT.
-                      DISPLAY RESULT.`
+                loadFixture("interpreter/divide/by-giving-result-dividend-divisor.cbl")
             );
 
             expect(out.lines).toEqual(["003.50"]);
@@ -697,13 +465,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 X PIC 9(3) VALUE 10.
-                      PROCEDURE DIVISION.
-                          DIVIDE 0 INTO X.`
+                    loadFixture("interpreter/divide/division-by-zero-throws-cobolruntimeerror.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -718,14 +480,7 @@ suite("Interpreter", () =>
         test("simple arithmetic expression", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 RESULT PIC 9(4).
-                  PROCEDURE DIVISION.
-                      COMPUTE RESULT = 2 + 3 * 4.
-                      DISPLAY RESULT.`
+                loadFixture("interpreter/compute/simple-arithmetic-expression.cbl")
             );
 
             expect(out.lines).toEqual(["0014"]);
@@ -734,16 +489,7 @@ suite("Interpreter", () =>
         test("uses identifier values from working-storage", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(2) VALUE 5.
-                  01 Y PIC 9(2) VALUE 7.
-                  01 RESULT PIC 9(4).
-                  PROCEDURE DIVISION.
-                      COMPUTE RESULT = X * Y + X.
-                      DISPLAY RESULT.`
+                loadFixture("interpreter/compute/uses-identifier-values-from-working-storage.cbl")
             );
 
             expect(out.lines).toEqual(["0040"]);
@@ -752,14 +498,7 @@ suite("Interpreter", () =>
         test("parens override precedence", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 RESULT PIC 9(3).
-                  PROCEDURE DIVISION.
-                      COMPUTE RESULT = (2 + 3) * 4.
-                      DISPLAY RESULT.`
+                loadFixture("interpreter/compute/parens-override-precedence.cbl")
             );
 
             expect(out.lines).toEqual(["020"]);
@@ -768,14 +507,7 @@ suite("Interpreter", () =>
         test("exponentiation with decimal result", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 RESULT PIC 9(4)V99.
-                  PROCEDURE DIVISION.
-                      COMPUTE RESULT = 3 ** 4.
-                      DISPLAY RESULT.`
+                loadFixture("interpreter/compute/exponentiation-with-decimal-result.cbl")
             );
 
             expect(out.lines).toEqual(["0081.00"]);
@@ -788,13 +520,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 RESULT PIC 9(3).
-                      PROCEDURE DIVISION.
-                          COMPUTE RESULT = MISSING + 1.`
+                    loadFixture("interpreter/compute/undefined-identifier-in-expression-throws-cobolruntimeerror.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -810,13 +536,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      DATA DIVISION.
-                      WORKING-STORAGE SECTION.
-                      01 RESULT PIC 9(3).
-                      PROCEDURE DIVISION.
-                          COMPUTE RESULT = 10 / 0.`
+                    loadFixture("interpreter/compute/division-by-zero-in-expression-throws.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -862,15 +582,7 @@ suite("Interpreter", () =>
         test("true branch executes", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 0.
-                  PROCEDURE DIVISION.
-                      IF X = 0 THEN
-                          DISPLAY "ZERO".
-                      END-IF.`
+                loadFixture("interpreter/if/true-branch-executes.cbl")
             );
 
             expect(out.lines).toEqual(["ZERO"]);
@@ -879,16 +591,7 @@ suite("Interpreter", () =>
         test("false branch with no ELSE produces nothing", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 5.
-                  PROCEDURE DIVISION.
-                      IF X = 0 THEN
-                          DISPLAY "ZERO".
-                      END-IF.
-                      DISPLAY "AFTER".`
+                loadFixture("interpreter/if/false-branch-with-no-else-produces-nothing.cbl")
             );
 
             expect(out.lines).toEqual(["AFTER"]);
@@ -897,17 +600,7 @@ suite("Interpreter", () =>
         test("false branch with ELSE executes ELSE body", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 5.
-                  PROCEDURE DIVISION.
-                      IF X = 0 THEN
-                          DISPLAY "ZERO".
-                      ELSE
-                          DISPLAY "NONZERO".
-                      END-IF.`
+                loadFixture("interpreter/if/false-branch-with-else-executes-else-body.cbl")
             );
 
             expect(out.lines).toEqual(["NONZERO"]);
@@ -916,18 +609,7 @@ suite("Interpreter", () =>
         test("AND combinator: both true", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 5.
-                  01 Y PIC 9(3) VALUE 5.
-                  PROCEDURE DIVISION.
-                      IF X = 5 AND Y = 5 THEN
-                          DISPLAY "BOTH".
-                      ELSE
-                          DISPLAY "NO".
-                      END-IF.`
+                loadFixture("interpreter/if/and-combinator-both-true.cbl")
             );
 
             expect(out.lines).toEqual(["BOTH"]);
@@ -936,18 +618,7 @@ suite("Interpreter", () =>
         test("AND combinator: one false", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 5.
-                  01 Y PIC 9(3) VALUE 0.
-                  PROCEDURE DIVISION.
-                      IF X = 5 AND Y = 5 THEN
-                          DISPLAY "BOTH".
-                      ELSE
-                          DISPLAY "NO".
-                      END-IF.`
+                loadFixture("interpreter/if/and-combinator-one-false.cbl")
             );
 
             expect(out.lines).toEqual(["NO"]);
@@ -956,15 +627,7 @@ suite("Interpreter", () =>
         test("OR combinator", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 1.
-                  PROCEDURE DIVISION.
-                      IF X = 1 OR X = 2 THEN
-                          DISPLAY "MATCH".
-                      END-IF.`
+                loadFixture("interpreter/if/or-combinator.cbl")
             );
 
             expect(out.lines).toEqual(["MATCH"]);
@@ -973,15 +636,7 @@ suite("Interpreter", () =>
         test("NOT prefix inverts truth", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 5.
-                  PROCEDURE DIVISION.
-                      IF NOT X = 0 THEN
-                          DISPLAY "NZ".
-                      END-IF.`
+                loadFixture("interpreter/if/not-prefix-inverts-truth.cbl")
             );
 
             expect(out.lines).toEqual(["NZ"]);
@@ -990,15 +645,7 @@ suite("Interpreter", () =>
         test("infix NOT (X NOT = 0) treats as not-equal", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 7.
-                  PROCEDURE DIVISION.
-                      IF X NOT = 0 THEN
-                          DISPLAY "NZ".
-                      END-IF.`
+                loadFixture("interpreter/if/infix-not-x-not-0-treats-as-not-equal.cbl")
             );
 
             expect(out.lines).toEqual(["NZ"]);
@@ -1007,16 +654,7 @@ suite("Interpreter", () =>
         test("comparison operators: <, >, <=, >=", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 5.
-                  PROCEDURE DIVISION.
-                      IF X < 10 THEN DISPLAY "LT". END-IF.
-                      IF X > 1  THEN DISPLAY "GT". END-IF.
-                      IF X <= 5 THEN DISPLAY "LE". END-IF.
-                      IF X >= 5 THEN DISPLAY "GE". END-IF.`
+                loadFixture("interpreter/if/comparison-operators.cbl")
             );
 
             expect(out.lines).toEqual(["LT", "GT", "LE", "GE"]);
@@ -1025,18 +663,7 @@ suite("Interpreter", () =>
         test("nested IF: inner true only when outer also true", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 0.
-                  01 Y PIC 9(3) VALUE 0.
-                  PROCEDURE DIVISION.
-                      IF X = 0 THEN
-                          IF Y = 0 THEN
-                              DISPLAY "BOTH".
-                          END-IF
-                      END-IF.`
+                loadFixture("interpreter/if/nested-if-inner-true-only-when-outer-also-true.cbl")
             );
 
             expect(out.lines).toEqual(["BOTH"]);
@@ -1045,17 +672,7 @@ suite("Interpreter", () =>
         test("STOP RUN inside IF body terminates the program", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 0.
-                  PROCEDURE DIVISION.
-                      DISPLAY "BEFORE".
-                      IF X = 0 THEN
-                          STOP RUN.
-                      END-IF.
-                      DISPLAY "AFTER".`
+                loadFixture("interpreter/if/stop-run-inside-if-body-terminates-the-program.cbl")
             );
 
             expect(out.lines).toEqual(["BEFORE"]);
@@ -1064,15 +681,7 @@ suite("Interpreter", () =>
         test("expression operands in comparison", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 4.
-                  PROCEDURE DIVISION.
-                      IF (X + 1) > 4 THEN
-                          DISPLAY "OK".
-                      END-IF.`
+                loadFixture("interpreter/if/expression-operands-in-comparison.cbl")
             );
 
             expect(out.lines).toEqual(["OK"]);
@@ -1110,14 +719,7 @@ suite("Interpreter", () =>
         test("SIMPLE runs target paragraph once", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SUB.
-                      STOP RUN.
-                  SUB.
-                      DISPLAY "RAN".`
+                loadFixture("interpreter/perform/simple-runs-target-paragraph-once.cbl")
             );
 
             expect(out.lines).toEqual(["RAN"]);
@@ -1126,14 +728,7 @@ suite("Interpreter", () =>
         test("TIMES runs target N times", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SUB 3 TIMES.
-                      STOP RUN.
-                  SUB.
-                      DISPLAY "RAN".`
+                loadFixture("interpreter/perform/times-runs-target-n-times.cbl")
             );
 
             expect(out.lines).toEqual(["RAN", "RAN", "RAN"]);
@@ -1142,15 +737,7 @@ suite("Interpreter", () =>
         test("TIMES with count 0 doesn't run the body", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SUB 0 TIMES.
-                      DISPLAY "AFTER".
-                      STOP RUN.
-                  SUB.
-                      DISPLAY "RAN".`
+                loadFixture("interpreter/perform/times-with-count-0-doesn-t-run-the-body.cbl")
             );
 
             expect(out.lines).toEqual(["AFTER"]);
@@ -1159,18 +746,7 @@ suite("Interpreter", () =>
         test("UNTIL stops when condition becomes true", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 N PIC 9(2) VALUE 0.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM TICK UNTIL N >= 3.
-                      STOP RUN.
-                  TICK.
-                      DISPLAY N.
-                      ADD 1 TO N.`
+                loadFixture("interpreter/perform/until-stops-when-condition-becomes-true.cbl")
             );
 
             expect(out.lines).toEqual(["00", "01", "02"]);
@@ -1179,18 +755,7 @@ suite("Interpreter", () =>
         test("UNTIL with initially-true condition runs zero times", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 N PIC 9(2) VALUE 5.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM TICK UNTIL N >= 3.
-                      DISPLAY "AFTER".
-                      STOP RUN.
-                  TICK.
-                      DISPLAY "RAN".`
+                loadFixture("interpreter/perform/until-with-initially-true-condition-runs-zero-times.cbl")
             );
 
             expect(out.lines).toEqual(["AFTER"]);
@@ -1199,17 +764,7 @@ suite("Interpreter", () =>
         test("VARYING loops with the variable tracked correctly", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC 9(2).
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SHOW VARYING I FROM 1 BY 1 UNTIL I > 4.
-                      STOP RUN.
-                  SHOW.
-                      DISPLAY I.`
+                loadFixture("interpreter/perform/varying-loops-with-the-variable-tracked-correctly.cbl")
             );
 
             expect(out.lines).toEqual(["01", "02", "03", "04"]);
@@ -1218,17 +773,7 @@ suite("Interpreter", () =>
         test("VARYING with custom step", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC 9(2).
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SHOW VARYING I FROM 2 BY 3 UNTIL I > 10.
-                      STOP RUN.
-                  SHOW.
-                      DISPLAY I.`
+                loadFixture("interpreter/perform/varying-with-custom-step.cbl")
             );
 
             expect(out.lines).toEqual(["02", "05", "08"]);
@@ -1237,20 +782,7 @@ suite("Interpreter", () =>
         test("VARYING with identifier FROM and BY operands", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC 9(2).
-                  01 START PIC 9(2) VALUE 4.
-                  01 STEP PIC 9(2) VALUE 2.
-                  01 LIMIT PIC 9(2) VALUE 10.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SHOW VARYING I FROM START BY STEP UNTIL I > LIMIT.
-                      STOP RUN.
-                  SHOW.
-                      DISPLAY I.`
+                loadFixture("interpreter/perform/varying-with-identifier-from-and-by-operands.cbl")
             );
 
             expect(out.lines).toEqual(["04", "06", "08", "10"]);
@@ -1263,12 +795,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      PROCEDURE DIVISION.
-                      MAIN.
-                          PERFORM MISSING.
-                          STOP RUN.`
+                    loadFixture("interpreter/perform/perform-unknown-paragraph-throws.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -1280,18 +807,7 @@ suite("Interpreter", () =>
         test("nested PERFORM (paragraph performs another paragraph)", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM OUTER.
-                      STOP RUN.
-                  OUTER.
-                      DISPLAY "OUTER-PRE".
-                      PERFORM INNER.
-                      DISPLAY "OUTER-POST".
-                  INNER.
-                      DISPLAY "INNER".`
+                loadFixture("interpreter/perform/nested-perform-paragraph-performs-another-paragraph.cbl")
             );
 
             expect(out.lines).toEqual(["OUTER-PRE", "INNER", "OUTER-POST"]);
@@ -1300,17 +816,7 @@ suite("Interpreter", () =>
         test("STOP RUN inside PERFORMed paragraph terminates the program", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM HALT.
-                      DISPLAY "AFTER MAIN".
-                      STOP RUN.
-                  HALT.
-                      DISPLAY "BEFORE STOP".
-                      STOP RUN.
-                      DISPLAY "AFTER STOP".`
+                loadFixture("interpreter/perform/stop-run-inside-performed-paragraph-terminates-the-program.cbl")
             );
 
             expect(out.lines).toEqual(["BEFORE STOP"]);
@@ -1319,13 +825,7 @@ suite("Interpreter", () =>
         test("fall-through: paragraphs after MAIN run if no STOP RUN", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      DISPLAY "MAIN".
-                  NEXT-PARA.
-                      DISPLAY "NEXT".`
+                loadFixture("interpreter/perform/fall-through-paragraphs-after-main-run-if-no-stop-run.cbl")
             );
 
             expect(out.lines).toEqual(["MAIN", "NEXT"]);
@@ -1363,12 +863,7 @@ suite("Interpreter", () =>
         test("halts execution at STOP RUN", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "BEFORE".
-                      STOP RUN.
-                      DISPLAY "AFTER".`
+                loadFixture("interpreter/stop-run/halts-execution-at-stop-run.cbl")
             );
 
             expect(out.lines).toEqual(["BEFORE"]);
@@ -1380,12 +875,7 @@ suite("Interpreter", () =>
         test("halts execution at GOBACK", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "BEFORE".
-                      GOBACK.
-                      DISPLAY "AFTER".`
+                loadFixture("interpreter/goback/halts-execution-at-goback.cbl")
             );
 
             expect(out.lines).toEqual(["BEFORE"]);
@@ -1394,16 +884,7 @@ suite("Interpreter", () =>
         test("GOBACK inside PERFORMed paragraph terminates the program", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      DISPLAY "MAIN".
-                      PERFORM SUB.
-                      DISPLAY "AFTER-PERFORM".
-                  SUB.
-                      DISPLAY "SUB".
-                      GOBACK.`
+                loadFixture("interpreter/goback/goback-inside-performed-paragraph-terminates-the-program.cbl")
             );
 
             expect(out.lines).toEqual(["MAIN", "SUB"]);
@@ -1415,13 +896,7 @@ suite("Interpreter", () =>
         test("bare EXIT is a no-op", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "BEFORE".
-                      EXIT.
-                      DISPLAY "AFTER".
-                      STOP RUN.`
+                loadFixture("interpreter/exit/bare-exit-is-a-no-op.cbl")
             );
 
             expect(out.lines).toEqual(["BEFORE", "AFTER"]);
@@ -1430,16 +905,7 @@ suite("Interpreter", () =>
         test("PERFORM of an EXIT-only paragraph runs and returns", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      DISPLAY "MAIN".
-                      PERFORM PLACEHOLDER.
-                      DISPLAY "AFTER-PERFORM".
-                      STOP RUN.
-                  PLACEHOLDER.
-                      EXIT.`
+                loadFixture("interpreter/exit/perform-of-an-exit-only-paragraph-runs-and-returns.cbl")
             );
 
             expect(out.lines).toEqual(["MAIN", "AFTER-PERFORM"]);
@@ -1448,13 +914,7 @@ suite("Interpreter", () =>
         test("EXIT PROGRAM is a no-op in main program", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "BEFORE".
-                      EXIT PROGRAM.
-                      DISPLAY "AFTER".
-                      STOP RUN.`
+                loadFixture("interpreter/exit/exit-program-is-a-no-op-in-main-program.cbl")
             );
 
             expect(out.lines).toEqual(["BEFORE", "AFTER"]);
@@ -1463,18 +923,7 @@ suite("Interpreter", () =>
         test("EXIT PARAGRAPH skips remaining statements in current paragraph", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      DISPLAY "MAIN-1".
-                      PERFORM SUB.
-                      DISPLAY "MAIN-2".
-                      STOP RUN.
-                  SUB.
-                      DISPLAY "SUB-1".
-                      EXIT PARAGRAPH.
-                      DISPLAY "SUB-2".`
+                loadFixture("interpreter/exit/exit-paragraph-skips-remaining-statements-in-current-paragraph.cbl")
             );
 
             expect(out.lines).toEqual(["MAIN-1", "SUB-1", "MAIN-2"]);
@@ -1483,16 +932,7 @@ suite("Interpreter", () =>
         test("EXIT PARAGRAPH at top level falls through to next paragraph", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      DISPLAY "M-1".
-                      EXIT PARAGRAPH.
-                      DISPLAY "M-2".
-                  NEXT-PARA.
-                      DISPLAY "NEXT".
-                      STOP RUN.`
+                loadFixture("interpreter/exit/exit-paragraph-at-top-level-falls-through-to-next-paragraph.cbl")
             );
 
             expect(out.lines).toEqual(["M-1", "NEXT"]);
@@ -1501,23 +941,7 @@ suite("Interpreter", () =>
         test("EXIT PARAGRAPH inside an IF body unwinds the paragraph", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(2) VALUE 5.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      DISPLAY "M-1".
-                      PERFORM SUB.
-                      DISPLAY "M-2".
-                      STOP RUN.
-                  SUB.
-                      DISPLAY "S-1".
-                      IF X > 0
-                          EXIT PARAGRAPH.
-                      END-IF.
-                      DISPLAY "S-2".`
+                loadFixture("interpreter/exit/exit-paragraph-inside-an-if-body-unwinds-the-paragraph.cbl")
             );
 
             expect(out.lines).toEqual(["M-1", "S-1", "M-2"]);
@@ -1526,22 +950,7 @@ suite("Interpreter", () =>
         test("EXIT PERFORM breaks out of UNTIL loop", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC 9(2) VALUE 0.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM STEP UNTIL I > 99.
-                      DISPLAY "AFTER".
-                      STOP RUN.
-                  STEP.
-                      ADD 1 TO I.
-                      DISPLAY I.
-                      IF I = 3
-                          EXIT PERFORM.
-                      END-IF.`
+                loadFixture("interpreter/exit/exit-perform-breaks-out-of-until-loop.cbl")
             );
 
             expect(out.lines).toEqual(["01", "02", "03", "AFTER"]);
@@ -1550,22 +959,7 @@ suite("Interpreter", () =>
         test("EXIT PERFORM breaks out of TIMES loop", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC 9(2) VALUE 0.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM STEP 10 TIMES.
-                      DISPLAY "AFTER".
-                      STOP RUN.
-                  STEP.
-                      ADD 1 TO I.
-                      DISPLAY I.
-                      IF I = 2
-                          EXIT PERFORM.
-                      END-IF.`
+                loadFixture("interpreter/exit/exit-perform-breaks-out-of-times-loop.cbl")
             );
 
             expect(out.lines).toEqual(["01", "02", "AFTER"]);
@@ -1574,21 +968,7 @@ suite("Interpreter", () =>
         test("EXIT PERFORM breaks out of VARYING loop", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC 9(2).
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM STEP VARYING I FROM 1 BY 1 UNTIL I > 10.
-                      DISPLAY "AFTER".
-                      STOP RUN.
-                  STEP.
-                      DISPLAY I.
-                      IF I = 4
-                          EXIT PERFORM.
-                      END-IF.`
+                loadFixture("interpreter/exit/exit-perform-breaks-out-of-varying-loop.cbl")
             );
 
             expect(out.lines).toEqual(["01", "02", "03", "04", "AFTER"]);
@@ -1601,10 +981,7 @@ suite("Interpreter", () =>
             try
             {
                 await execute(
-                    ` IDENTIFICATION DIVISION.
-                      PROGRAM-ID. P.
-                      PROCEDURE DIVISION.
-                          EXIT PERFORM.`
+                    loadFixture("interpreter/exit/exit-perform-at-top-level-outside-perform-throws-runtime-error.cbl")
                 );
             }
             catch(error) { thrown = error; }
@@ -1619,15 +996,7 @@ suite("Interpreter", () =>
         test("MOVE -5 stores negative value", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC S9(3).
-                  PROCEDURE DIVISION.
-                      MOVE -5 TO X.
-                      DISPLAY X.
-                      STOP RUN.`
+                loadFixture("interpreter/signed-numeric-literals/move-5-stores-negative-value.cbl")
             );
 
             expect(out.lines).toEqual(["-005"]);
@@ -1636,15 +1005,7 @@ suite("Interpreter", () =>
         test("ADD with negative literal subtracts", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC S9(3) VALUE 10.
-                  PROCEDURE DIVISION.
-                      ADD -3 TO X.
-                      DISPLAY X.
-                      STOP RUN.`
+                loadFixture("interpreter/signed-numeric-literals/add-with-negative-literal-subtracts.cbl")
             );
 
             expect(out.lines).toEqual(["007"]);
@@ -1653,17 +1014,7 @@ suite("Interpreter", () =>
         test("PERFORM VARYING counts down with negative BY step", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC S9(2).
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM TICK VARYING I FROM 3 BY -1 UNTIL I < 1.
-                      STOP RUN.
-                  TICK.
-                      DISPLAY I.`
+                loadFixture("interpreter/signed-numeric-literals/perform-varying-counts-down-with-negative-by-step.cbl")
             );
 
             expect(out.lines).toEqual(["03", "02", "01"]);
@@ -1672,14 +1023,7 @@ suite("Interpreter", () =>
         test("VALUE -100 initializes with negative", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 BALANCE PIC S9(5) VALUE -100.
-                  PROCEDURE DIVISION.
-                      DISPLAY BALANCE.
-                      STOP RUN.`
+                loadFixture("interpreter/signed-numeric-literals/value-100-initializes-with-negative.cbl")
             );
 
             expect(out.lines).toEqual(["-00100"]);
@@ -1688,11 +1032,7 @@ suite("Interpreter", () =>
         test("DISPLAY of bare negative literal", async () =>
         {
             const out = await execute(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY -7.
-                      STOP RUN.`
+                loadFixture("interpreter/signed-numeric-literals/display-of-bare-negative-literal.cbl")
             );
 
             expect(out.lines).toEqual(["-7"]);

@@ -40,18 +40,24 @@ tick the trailing verify step in place, then proceed.
 
 ### COBOL source snippets in tests live in tests/data/
 
-Multi-line COBOL fixtures (`HELLO-WORLD`, `FIZZBUZZ`, etc.) live as `.cbl`
-files under `tests/data/`. Load them via the `loadFixture(name)` helper
+Any multi-line COBOL embedded in a test goes in `tests/data/` as a `.cbl`
+file, organised by module and suite (e.g. `parser/if-conditions/...`,
+`interpreter/perform/...`). Load via the `loadFixture(path)` helper
 exported from `tests/runner.js`:
 
 ```js
 import { loadFixture } from "../runner.js";
 
-const source = loadFixture("hello-world.cbl");
+const source = loadFixture("parser/identification-division/captures-program-id-from-identifier.cbl");
 ```
 
-**Why:** indent-sensitive template literals look like a formatting bug and
-are easy to break with a careless re-format. Files are immune to that.
+Single-line partials (`parse(" PROCEDURE DIVISION.")`) stay inline —
+extracting one-liners adds friction without saving anything.
+
+**Why:** template-literal COBOL blocks are indent-sensitive in look (one
+careless reformat shifts a column boundary), bloat the test file, and
+would silently break the moment we add a strict-column mode. Files are
+immune to all three.
 
 
 

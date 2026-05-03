@@ -16,9 +16,7 @@ suite("Parser", () =>
         test("captures program-id from identifier", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. HELLO-WORLD.
-                  PROCEDURE DIVISION.`
+                loadFixture("parser/identification-division/captures-program-id-from-identifier.cbl")
             );
 
             expect(program.programId).toBe("HELLO-WORLD");
@@ -32,8 +30,7 @@ suite("Parser", () =>
         test("missing PROGRAM-ID name throws syntax error", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. .`)
+                parse(loadFixture("parser/identification-division/missing-program-id-name-throws-syntax-error.cbl"))
             ).toThrow("expected program name");
         });
     });
@@ -43,12 +40,7 @@ suite("Parser", () =>
         test("ENVIRONMENT DIVISION is skipped", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. PROG.
-                  ENVIRONMENT DIVISION.
-                  CONFIGURATION SECTION.
-                  PROCEDURE DIVISION.
-                      DISPLAY "OK".`
+                loadFixture("parser/division-skipping/environment-division-is-skipped.cbl")
             );
 
             expect(program.programId).toBe("PROG");
@@ -61,15 +53,7 @@ suite("Parser", () =>
             // should consume FILE-SECTION tokens until WORKING-STORAGE
             // appears and pick up parsing there.
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. PROG.
-                  DATA DIVISION.
-                  FILE SECTION.
-                  FD INPUT-FILE.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC 9(3) VALUE 7.
-                  PROCEDURE DIVISION.
-                      DISPLAY X.`
+                loadFixture("parser/division-skipping/non-working-storage-sections-inside-data-division-are-skipped.cbl")
             );
 
             expect(program.dataItems.has("X")).toBe(true);
@@ -82,13 +66,7 @@ suite("Parser", () =>
         test("elementary item with PIC registers in dataItems", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 USER-NAME PIC X(20).
-                  PROCEDURE DIVISION.
-                      DISPLAY "OK".`
+                loadFixture("parser/working-storage/elementary-item-with-pic-registers-in-dataitems.cbl")
             );
 
             const item = program.dataItems.get("USER-NAME");
@@ -103,13 +81,7 @@ suite("Parser", () =>
         test("VALUE clause initialises the field", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 COUNTER PIC 9(3) VALUE 5.
-                  PROCEDURE DIVISION.
-                      DISPLAY "OK".`
+                loadFixture("parser/working-storage/value-clause-initialises-the-field.cbl")
             );
 
             const item = program.dataItems.get("COUNTER");
@@ -120,13 +92,7 @@ suite("Parser", () =>
         test("VALUE with string literal", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 GREETING PIC X(10) VALUE "HI".
-                  PROCEDURE DIVISION.
-                      DISPLAY "OK".`
+                loadFixture("parser/working-storage/value-with-string-literal.cbl")
             );
 
             expect(program.dataItems.get("GREETING").getDisplay()).toBe("HI        ");
@@ -135,15 +101,7 @@ suite("Parser", () =>
         test("group / elementary nesting via level numbers", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 STUDENT.
-                     05 NAME PIC X(5).
-                     05 AGE PIC 9(2).
-                  PROCEDURE DIVISION.
-                      DISPLAY "OK".`
+                loadFixture("parser/working-storage/group-elementary-nesting-via-level-numbers.cbl")
             );
 
             const student = program.dataItems.get("STUDENT");
@@ -159,15 +117,7 @@ suite("Parser", () =>
         test("level 77 is always top-level", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 GROUP.
-                     05 INNER PIC X(3).
-                  77 STANDALONE PIC 9(3).
-                  PROCEDURE DIVISION.
-                      DISPLAY "OK".`
+                loadFixture("parser/working-storage/level-77-is-always-top-level.cbl")
             );
 
             const standalone = program.dataItems.get("STANDALONE");
@@ -178,13 +128,7 @@ suite("Parser", () =>
         test("PICTURE keyword accepted as alias for PIC", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PICTURE 9(3).
-                  PROCEDURE DIVISION.
-                      DISPLAY "OK".`
+                loadFixture("parser/working-storage/picture-keyword-accepted-as-alias-for-pic.cbl")
             );
 
             expect(program.dataItems.get("X").pic.length).toBe(3);
@@ -193,25 +137,14 @@ suite("Parser", () =>
         test("duplicate name throws syntax error", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        DATA DIVISION.
-                        WORKING-STORAGE SECTION.
-                        01 X PIC 9(3).
-                        01 X PIC X(3).
-                        PROCEDURE DIVISION.`)
+                parse(loadFixture("parser/working-storage/duplicate-name-throws-syntax-error.cbl"))
             ).toThrow(`duplicate data item name "X"`);
         });
 
         test("unsupported level number throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        DATA DIVISION.
-                        WORKING-STORAGE SECTION.
-                        88 FLAG VALUE 1.
-                        PROCEDURE DIVISION.`)
+                parse(loadFixture("parser/working-storage/unsupported-level-number-throws.cbl"))
             ).toThrow("unsupported level number 88");
         });
     });
@@ -221,10 +154,7 @@ suite("Parser", () =>
         test("single string literal", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "HI".`
+                loadFixture("parser/display/single-string-literal.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -240,10 +170,7 @@ suite("Parser", () =>
         test("multiple operands collected in order", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "A" "B" 42.`
+                loadFixture("parser/display/multiple-operands-collected-in-order.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -258,10 +185,7 @@ suite("Parser", () =>
         test("identifier operand recorded as identifier kind", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY USER-NAME.`
+                loadFixture("parser/display/identifier-operand-recorded-as-identifier-kind.cbl")
             );
 
             const op = program.paragraphs[0].statements[0].operands[0];
@@ -273,10 +197,7 @@ suite("Parser", () =>
         test("WITH NO ADVANCING flag captured", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "PROMPT: " WITH NO ADVANCING.`
+                loadFixture("parser/display/with-no-advancing-flag-captured.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -289,10 +210,7 @@ suite("Parser", () =>
         test("missing terminating period raises end-of-input error", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            DISPLAY "A"`)
+                parse(loadFixture("parser/display/missing-terminating-period-raises-end-of-input-error.cbl"))
             ).toThrow("unexpected end of input in DISPLAY");
         });
     });
@@ -302,10 +220,7 @@ suite("Parser", () =>
         test("single source, single target", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      MOVE 5 TO X.`
+                loadFixture("parser/move/single-source-single-target.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -320,10 +235,7 @@ suite("Parser", () =>
         test("multiple targets", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      MOVE 0 TO A B C.`
+                loadFixture("parser/move/multiple-targets.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -334,10 +246,7 @@ suite("Parser", () =>
         test("identifier source", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      MOVE SOURCE TO DEST.`
+                loadFixture("parser/move/identifier-source.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -349,20 +258,14 @@ suite("Parser", () =>
         test("missing TO throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            MOVE 5 X.`)
+                parse(loadFixture("parser/move/missing-to-throws.cbl"))
             ).toThrow(`expected KEYWORD "TO"`);
         });
 
         test("no targets throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            MOVE 5 TO.`)
+                parse(loadFixture("parser/move/no-targets-throws.cbl"))
             ).toThrow("MOVE requires at least one target");
         });
     });
@@ -372,10 +275,7 @@ suite("Parser", () =>
         test("captures target identifier", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      ACCEPT USER-NAME.`
+                loadFixture("parser/accept/captures-target-identifier.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -387,10 +287,7 @@ suite("Parser", () =>
         test("missing identifier throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            ACCEPT.`)
+                parse(loadFixture("parser/accept/missing-identifier-throws.cbl"))
             ).toThrow("expected IDENTIFIER");
         });
     });
@@ -400,10 +297,7 @@ suite("Parser", () =>
         test("in-place: ADD x TO y", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      ADD 1 TO COUNTER.`
+                loadFixture("parser/add/in-place-add-x-to-y.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -418,10 +312,7 @@ suite("Parser", () =>
         test("multi-source TO multi-target", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      ADD A B TO C D.`
+                loadFixture("parser/add/multi-source-to-multi-target.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -433,10 +324,7 @@ suite("Parser", () =>
         test("GIVING form", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      ADD A B GIVING C.`
+                loadFixture("parser/add/giving-form.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -448,20 +336,14 @@ suite("Parser", () =>
         test("missing TO/GIVING throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            ADD A B C.`)
+                parse(loadFixture("parser/add/missing-to-giving-throws.cbl"))
             ).toThrow("expected TO or GIVING in ADD");
         });
 
         test("no targets throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            ADD 1 TO.`)
+                parse(loadFixture("parser/add/no-targets-throws.cbl"))
             ).toThrow("ADD requires at least one target");
         });
     });
@@ -471,10 +353,7 @@ suite("Parser", () =>
         test("in-place: SUBTRACT x FROM y", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      SUBTRACT 1 FROM COUNTER.`
+                loadFixture("parser/subtract/in-place-subtract-x-from-y.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -488,10 +367,7 @@ suite("Parser", () =>
         test("FROM-via-GIVING form", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      SUBTRACT A FROM B GIVING C.`
+                loadFixture("parser/subtract/from-via-giving-form.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -504,10 +380,7 @@ suite("Parser", () =>
         test("FROM literal in in-place form throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            SUBTRACT 5 FROM 10.`)
+                parse(loadFixture("parser/subtract/from-literal-in-in-place-form-throws.cbl"))
             ).toThrow("must be an identifier");
         });
     });
@@ -517,10 +390,7 @@ suite("Parser", () =>
         test("in-place: MULTIPLY x BY y", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      MULTIPLY 2 BY VALUE-FIELD.`
+                loadFixture("parser/multiply/in-place-multiply-x-by-y.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -534,10 +404,7 @@ suite("Parser", () =>
         test("GIVING form", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      MULTIPLY A BY B GIVING C.`
+                loadFixture("parser/multiply/giving-form.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -551,10 +418,7 @@ suite("Parser", () =>
         test("missing BY throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            MULTIPLY 2 X.`)
+                parse(loadFixture("parser/multiply/missing-by-throws.cbl"))
             ).toThrow(`expected KEYWORD "BY"`);
         });
     });
@@ -564,10 +428,7 @@ suite("Parser", () =>
         test("in-place: DIVIDE divisor INTO target", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DIVIDE 3 INTO TOTAL.`
+                loadFixture("parser/divide/in-place-divide-divisor-into-target.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -580,10 +441,7 @@ suite("Parser", () =>
         test("INTO + GIVING", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DIVIDE A INTO B GIVING C.`
+                loadFixture("parser/divide/into-giving.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -596,10 +454,7 @@ suite("Parser", () =>
         test("BY + GIVING", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DIVIDE A BY B GIVING C.`
+                loadFixture("parser/divide/by-giving.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -612,20 +467,14 @@ suite("Parser", () =>
         test("BY without GIVING throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            DIVIDE A BY B.`)
+                parse(loadFixture("parser/divide/by-without-giving-throws.cbl"))
             ).toThrow("DIVIDE BY requires GIVING");
         });
 
         test("missing direction throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            DIVIDE A B GIVING C.`)
+                parse(loadFixture("parser/divide/missing-direction-throws.cbl"))
             ).toThrow("expected INTO or BY");
         });
     });
@@ -635,10 +484,7 @@ suite("Parser", () =>
         test("captures target and expression tokens", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      COMPUTE Y = X + 1.`
+                loadFixture("parser/compute/captures-target-and-expression-tokens.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -655,30 +501,21 @@ suite("Parser", () =>
         test("missing = throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            COMPUTE Y X + 1.`)
+                parse(loadFixture("parser/compute/missing-throws.cbl"))
             ).toThrow(`expected "=" in COMPUTE`);
         });
 
         test("empty expression throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            COMPUTE Y = .`)
+                parse(loadFixture("parser/compute/empty-expression-throws.cbl"))
             ).toThrow("COMPUTE requires an expression");
         });
 
         test("missing terminating period throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            COMPUTE Y = X + 1`)
+                parse(loadFixture("parser/compute/missing-terminating-period-throws.cbl"))
             ).toThrow("unexpected end of input in COMPUTE");
         });
     });
@@ -688,12 +525,7 @@ suite("Parser", () =>
         test("simple compare with optional THEN", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF X = 0 THEN
-                          DISPLAY "Z".
-                      END-IF.`
+                loadFixture("parser/if-conditions/simple-compare-with-optional-then.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -708,12 +540,7 @@ suite("Parser", () =>
         test("THEN keyword is optional", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF X = 0
-                          DISPLAY "Z".
-                      END-IF.`
+                loadFixture("parser/if-conditions/then-keyword-is-optional.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -725,14 +552,7 @@ suite("Parser", () =>
         test("ELSE branch captured", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF X = 0 THEN
-                          DISPLAY "Z".
-                      ELSE
-                          DISPLAY "NZ".
-                      END-IF.`
+                loadFixture("parser/if-conditions/else-branch-captured.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -745,12 +565,7 @@ suite("Parser", () =>
         test("AND combinator builds logical node", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF X = 0 AND Y = 0 THEN
-                          DISPLAY "BOTH".
-                      END-IF.`
+                loadFixture("parser/if-conditions/and-combinator-builds-logical-node.cbl")
             );
 
             const cond = program.paragraphs[0].statements[0].condition;
@@ -764,12 +579,7 @@ suite("Parser", () =>
         test("OR combinator builds logical node", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF X = 1 OR X = 2 THEN
-                          DISPLAY "OK".
-                      END-IF.`
+                loadFixture("parser/if-conditions/or-combinator-builds-logical-node.cbl")
             );
 
             const cond = program.paragraphs[0].statements[0].condition;
@@ -781,12 +591,7 @@ suite("Parser", () =>
         test("NOT prefix wraps in not node", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF NOT X = 0 THEN
-                          DISPLAY "NZ".
-                      END-IF.`
+                loadFixture("parser/if-conditions/not-prefix-wraps-in-not-node.cbl")
             );
 
             const cond = program.paragraphs[0].statements[0].condition;
@@ -798,12 +603,7 @@ suite("Parser", () =>
         test("infix NOT (X NOT = 0) wraps the comparison", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF X NOT = 0 THEN
-                          DISPLAY "NZ".
-                      END-IF.`
+                loadFixture("parser/if-conditions/infix-not-x-not-0-wraps-the-comparison.cbl")
             );
 
             const cond = program.paragraphs[0].statements[0].condition;
@@ -816,12 +616,7 @@ suite("Parser", () =>
         test("paren expression in comparison: (X + 1) > Y", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF (X + 1) > Y THEN
-                          DISPLAY "OK".
-                      END-IF.`
+                loadFixture("parser/if-conditions/paren-expression-in-comparison-x-1-y.cbl")
             );
 
             const cond = program.paragraphs[0].statements[0].condition;
@@ -833,12 +628,7 @@ suite("Parser", () =>
         test("paren-condition: (X = 1) AND (Y = 2)", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF (X = 1) AND (Y = 2) THEN
-                          DISPLAY "OK".
-                      END-IF.`
+                loadFixture("parser/if-conditions/paren-condition-x-1-and-y-2.cbl")
             );
 
             const cond = program.paragraphs[0].statements[0].condition;
@@ -852,14 +642,7 @@ suite("Parser", () =>
         test("nested IF inside IF", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      IF X = 0 THEN
-                          IF Y = 0 THEN
-                              DISPLAY "BOTH".
-                          END-IF
-                      END-IF.`
+                loadFixture("parser/if-conditions/nested-if-inside-if.cbl")
             );
 
             const outer = program.paragraphs[0].statements[0];
@@ -872,23 +655,14 @@ suite("Parser", () =>
         test("missing END-IF throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            IF X = 0 THEN
-                                DISPLAY "Z".`)
+                parse(loadFixture("parser/if-conditions/missing-end-if-throws.cbl"))
             ).toThrow("unexpected end of input in IF body");
         });
 
         test("missing comparison operator throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            IF X AND Y THEN
-                                DISPLAY "Z".
-                            END-IF.`)
+                parse(loadFixture("parser/if-conditions/missing-comparison-operator-throws.cbl"))
             ).toThrow("expected comparison operator");
         });
     });
@@ -898,11 +672,7 @@ suite("Parser", () =>
         test("paragraph header creates a new paragraph", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      DISPLAY "A".`
+                loadFixture("parser/paragraphs-perform/paragraph-header-creates-a-new-paragraph.cbl")
             );
 
             // paragraphs[0] is the anonymous default; MAIN is appended.
@@ -914,12 +684,7 @@ suite("Parser", () =>
         test("statements before any header land in the anonymous paragraph", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY "A".
-                  LATER.
-                      DISPLAY "B".`
+                loadFixture("parser/paragraphs-perform/statements-before-any-header-land-in-the-anonymous-paragraph.cbl")
             );
 
             expect(program.paragraphs.length).toBe(2);
@@ -932,26 +697,14 @@ suite("Parser", () =>
         test("duplicate paragraph name throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                        MAIN.
-                            DISPLAY "A".
-                        MAIN.
-                            DISPLAY "B".`)
+                parse(loadFixture("parser/paragraphs-perform/duplicate-paragraph-name-throws.cbl"))
             ).toThrow(`duplicate paragraph name "MAIN"`);
         });
 
         test("PERFORM SIMPLE captures target", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SUB.
-                  SUB.
-                      DISPLAY "S".`
+                loadFixture("parser/paragraphs-perform/perform-simple-captures-target.cbl")
             );
 
             const stmt = program.paragraphs[1].statements[0];
@@ -964,13 +717,7 @@ suite("Parser", () =>
         test("PERFORM TIMES with literal count", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SUB 5 TIMES.
-                  SUB.
-                      DISPLAY "S".`
+                loadFixture("parser/paragraphs-perform/perform-times-with-literal-count.cbl")
             );
 
             const stmt = program.paragraphs[1].statements[0];
@@ -983,13 +730,7 @@ suite("Parser", () =>
         test("PERFORM UNTIL captures condition", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SUB UNTIL X = 0.
-                  SUB.
-                      DISPLAY "S".`
+                loadFixture("parser/paragraphs-perform/perform-until-captures-condition.cbl")
             );
 
             const stmt = program.paragraphs[1].statements[0];
@@ -1001,13 +742,7 @@ suite("Parser", () =>
         test("PERFORM VARYING captures all parts", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM SUB VARYING I FROM 1 BY 1 UNTIL I > 5.
-                  SUB.
-                      DISPLAY "S".`
+                loadFixture("parser/paragraphs-perform/perform-varying-captures-all-parts.cbl")
             );
 
             const stmt = program.paragraphs[1].statements[0];
@@ -1022,13 +757,7 @@ suite("Parser", () =>
         test("PERFORM with TIMES but no count throws", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                        MAIN.
-                            PERFORM SUB TIMES.
-                        SUB.
-                            DISPLAY "S".`)
+                parse(loadFixture("parser/paragraphs-perform/perform-with-times-but-no-count-throws.cbl"))
             ).toThrow("expected operand");
         });
     });
@@ -1038,10 +767,7 @@ suite("Parser", () =>
         test("parsed as STOP_RUN statement", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      STOP RUN.`
+                loadFixture("parser/stop-run/parsed-as-stop-run-statement.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1052,10 +778,7 @@ suite("Parser", () =>
         test("STOP without RUN throws syntax error", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            STOP.`)
+                parse(loadFixture("parser/stop-run/stop-without-run-throws-syntax-error.cbl"))
             ).toThrow(`expected KEYWORD "RUN"`);
         });
     });
@@ -1065,10 +788,7 @@ suite("Parser", () =>
         test("parsed as GOBACK statement", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      GOBACK.`
+                loadFixture("parser/goback/parsed-as-goback-statement.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1079,10 +799,7 @@ suite("Parser", () =>
         test("GOBACK without trailing period throws syntax error", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            GOBACK`)
+                parse(loadFixture("parser/goback/goback-without-trailing-period-throws-syntax-error.cbl"))
             ).toThrow(`expected PERIOD`);
         });
     });
@@ -1092,10 +809,7 @@ suite("Parser", () =>
         test("bare EXIT parses as form PLAIN", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      EXIT.`
+                loadFixture("parser/exit/bare-exit-parses-as-form-plain.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1107,10 +821,7 @@ suite("Parser", () =>
         test("EXIT PARAGRAPH parses as form PARAGRAPH", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      EXIT PARAGRAPH.`
+                loadFixture("parser/exit/exit-paragraph-parses-as-form-paragraph.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1122,10 +833,7 @@ suite("Parser", () =>
         test("EXIT PROGRAM parses as form PROGRAM", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      EXIT PROGRAM.`
+                loadFixture("parser/exit/exit-program-parses-as-form-program.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1137,10 +845,7 @@ suite("Parser", () =>
         test("EXIT PERFORM parses as form PERFORM", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      EXIT PERFORM.`
+                loadFixture("parser/exit/exit-perform-parses-as-form-perform.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1155,10 +860,7 @@ suite("Parser", () =>
         test("DISPLAY accepts negative literal", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  PROCEDURE DIVISION.
-                      DISPLAY -5.`
+                loadFixture("parser/signed-numeric-literals/display-accepts-negative-literal.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1172,13 +874,7 @@ suite("Parser", () =>
         test("MOVE source accepts +5 (explicit positive)", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC S9(3).
-                  PROCEDURE DIVISION.
-                      MOVE +5 TO X.`
+                loadFixture("parser/signed-numeric-literals/move-source-accepts-5-explicit-positive.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1189,17 +885,7 @@ suite("Parser", () =>
         test("PERFORM VARYING accepts negative BY step", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 I PIC S9(2).
-                  PROCEDURE DIVISION.
-                  MAIN.
-                      PERFORM TICK VARYING I FROM 3 BY -1 UNTIL I < 1.
-                      STOP RUN.
-                  TICK.
-                      DISPLAY I.`
+                loadFixture("parser/signed-numeric-literals/perform-varying-accepts-negative-by-step.cbl")
             );
 
             const stmt = program.paragraphs[1].statements[0];
@@ -1212,13 +898,7 @@ suite("Parser", () =>
         test("VALUE clause accepts negative literal", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 BALANCE PIC S9(5) VALUE -100.
-                  PROCEDURE DIVISION.
-                      DISPLAY BALANCE.`
+                loadFixture("parser/signed-numeric-literals/value-clause-accepts-negative-literal.cbl")
             );
 
             const item = program.dataItems.get("BALANCE");
@@ -1229,13 +909,7 @@ suite("Parser", () =>
         test("ADD with bare negative literal as one of the sources", () =>
         {
             const program = parse(
-                ` IDENTIFICATION DIVISION.
-                  PROGRAM-ID. P.
-                  DATA DIVISION.
-                  WORKING-STORAGE SECTION.
-                  01 X PIC S9(3) VALUE 10.
-                  PROCEDURE DIVISION.
-                      ADD -3 TO X.`
+                loadFixture("parser/signed-numeric-literals/add-with-bare-negative-literal-as-one-of-the-sources.cbl")
             );
 
             const stmt = program.paragraphs[0].statements[0];
@@ -1250,20 +924,14 @@ suite("Parser", () =>
         test("unsupported statement keyword reports clearly", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            ZERO.`)
+                parse(loadFixture("parser/statement-errors/unsupported-statement-keyword-reports-clearly.cbl"))
             ).toThrow(`unsupported statement "ZERO"`);
         });
 
         test("non-keyword at statement start reports clearly", () =>
         {
             expect(() =>
-                parse(` IDENTIFICATION DIVISION.
-                        PROGRAM-ID. P.
-                        PROCEDURE DIVISION.
-                            123.`)
+                parse(loadFixture("parser/statement-errors/non-keyword-at-statement-start-reports-clearly.cbl"))
             ).toThrow("expected statement");
         });
     });
