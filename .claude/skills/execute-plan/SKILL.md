@@ -37,7 +37,7 @@ Read the request carefully. If anything is ambiguous (scope, target environment,
 
 ### 2. Location of the plan
 
-The plan to be executed must be located in `./claude/planning/PLAN.md` in the working directory. Check whether `./claude/planning/PLAN.md` exists.
+The plan to be executed must be located in `./claude/planning/CURRENT-PLAN.md` in the working directory. Check whether `./claude/planning/CURRENT-PLAN.md` exists.
 
 - **If it does NOT exist** → inform the user that no plan is available to execute.
 - **If it DOES exist** → proceed with executing the plan.

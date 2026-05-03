@@ -3,19 +3,19 @@
 ## Deliverable
 
 ### Overview
-* Lines of Code: 7,516
-* Files: 221
-* Tests: 332
+* Lines of Code: 11,795
+* Files: 265
+* Tests: 364
 
 ### Lines of Code (LOC) by Code Type
-* COBOL: 1,555 (21%)
-* JS: 5,315 (71%)
-* CSS: 540 (7%)
-* HTML: 97 (1%)
-* Other: 9 (0%)
+* COBOL: 2,192 (19%)
+* JS: 8,268 (70%)
+* CSS: 1,124 (9%)
+* HTML: 200 (2%)
+* Other: 11 (0%)
 
 ## Planning
 
 ### Words of Documentation
-* Plans: 2,036
-* Reviews: 4,504
+* Plans: 15,358
+* Reviews: 6,478

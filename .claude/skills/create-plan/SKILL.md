@@ -45,12 +45,12 @@ Read the request carefully. If anything is ambiguous (scope, target environment,
 
 ### 3. Determine the output path
 
-Check whether `./claude/planning/PLAN.md` exists in the working directory.
+Check whether `./claude/planning/CURRENT-PLAN.md` exists in the working directory.
 
-- **If it does NOT exist** → write the new plan to `./claude/planning/PLAN.md`.
+- **If it does NOT exist** → write the new plan to `./claude/planning/CURRENT-PLAN.md`.
 - **If it DOES exist** → ask the user:
-  > "A `PLAN.md` already exists. Overwrite it with the new plan?"
-  - If the user says **yes** → overwrite `./claude/planning/PLAN.md`.
+  > "A `CURRENT-PLAN.md` already exists. Overwrite it with the new plan?"
+  - If the user says **yes** → overwrite `./claude/planning/CURRENT-PLAN.md`.
   - If the user says **no** → ask the user to archive the existing plan before proceeding.
 
 
@@ -89,4 +89,4 @@ Decomposition:
 - **Task 2: Apply theme tokens across the app** — replace hardcoded colors with CSS variables; verify contrast; check modals, tooltips, and overlays.
 - **Task 3: Test and document** — unit tests for persistence; manual light/dark QA; update README.
 
-The skill writes the full plan (using the template) to `./claude/planning/PLAN.md`, or asks the user to archive the existing plan if a `./claude/planning/PLAN.md` already exists and the user declines to overwrite.
+The skill writes the full plan (using the template) to `./claude/planning/CURRENT-PLAN.md`, or asks the user to archive the existing plan if a `./claude/planning/CURRENT-PLAN.md` already exists and the user declines to overwrite.

@@ -1,2 +1,4 @@
 .local/
-.claude/planning/PLAN.md
+.claude/planning/CURRENT-PLAN.md
+.claude/planning/CURRENT-REVIEW.md
+build/

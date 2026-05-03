@@ -14,7 +14,7 @@ import * as Examples from "./modules/examples.js";
 // {plan}    — the current plan number.
 // {task}    — the most recently completed task within the current plan.
 // {release} — resets to 0 whenever {task} changes.
-const VERSION = "V0_17_0";
+const VERSION = "V1_0_0";
 
 
 class App
