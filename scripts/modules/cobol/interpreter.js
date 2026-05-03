@@ -300,7 +300,14 @@ class Interpreter
             throw new CobolRuntimeError(statement.line, `COMPUTE expression must produce a number, got ${typeof result}`);
         }
 
-        this.lookupItem(statement.target).assign(result);
+        const item = this.lookupItem(statement.target);
+
+        if(item.isElementary() && item.pic.kind !== "numeric")
+        {
+            throw new CobolRuntimeError(statement.line, `COMPUTE target "${item.name}" must be a numeric PIC`);
+        }
+
+        item.assign(result);
     }
 
 

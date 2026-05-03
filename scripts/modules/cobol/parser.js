@@ -22,6 +22,26 @@ import * as DataDivision from "./parser/data-division.js";
 //   * PROCEDURE DIVISION paragraph headers
 //   * Statements: DISPLAY, MOVE, ACCEPT, ADD, SUBTRACT, MULTIPLY,
 //     DIVIDE, COMPUTE, IF/ELSE/END-IF, PERFORM, STOP RUN, GOBACK, EXIT
+//
+// Statements may end either with a period or with an implicit boundary
+// — the next statement-starter keyword or a scope terminator (ELSE /
+// END-IF). This is the COBOL '85 looser form and the natural shape
+// inside an IF body. See `STATEMENT_BOUNDARY_KEYWORDS` below.
+
+
+// Keywords that can never appear *inside* a single statement and so
+// signal the end of the current statement when no period precedes them.
+// Statement-internal keywords (WITH, NO, ADVANCING, TO, BY, FROM,
+// GIVING, TIMES, UNTIL, VARYING, THEN, RUN, PARAGRAPH, PROGRAM, FUNCTION,
+// AND, OR, NOT, RANDOM-named functions etc.) are deliberately excluded.
+const STATEMENT_BOUNDARY_KEYWORDS = new Set([
+    "DISPLAY", "MOVE", "ACCEPT",
+    "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "COMPUTE",
+    "IF", "PERFORM",
+    "STOP", "GOBACK", "EXIT",
+    "ELSE", "END-IF"
+]);
+
 
 class Parser
 {
@@ -164,8 +184,9 @@ class Parser
         {
             const t = this.peek();
 
-            if(t.type === "PERIOD") { this.consume(); break; }
-            if(t.type === "EOF")    { this.errorAt(t, "unexpected end of input in DISPLAY"); }
+            if(t.type === "PERIOD")          { this.consume(); break; }
+            if(this.isStatementBoundary(t))  { break; }
+            if(t.type === "EOF")             { this.errorAt(t, "unexpected end of input in DISPLAY"); }
 
             if(t.type === "KEYWORD" && t.value === "WITH")
             {
@@ -198,8 +219,9 @@ class Parser
         {
             const t = this.peek();
 
-            if(t.type === "PERIOD") { this.consume(); break; }
-            if(t.type === "EOF")    { this.errorAt(t, "unexpected end of input in MOVE"); }
+            if(t.type === "PERIOD")          { this.consume(); break; }
+            if(this.isStatementBoundary(t))  { break; }
+            if(t.type === "EOF")             { this.errorAt(t, "unexpected end of input in MOVE"); }
 
             if(t.type !== "IDENTIFIER")
             {
@@ -223,7 +245,7 @@ class Parser
         const startTok = this.consume();
 
         const nameTok = this.expect("IDENTIFIER");
-        this.expect("PERIOD");
+        this.expectStatementEnd();
 
         const target = { kind: "identifier", name: nameTok.value, line: nameTok.line };
 
@@ -256,8 +278,9 @@ class Parser
         {
             const t = this.peek();
 
-            if(t.type === "PERIOD") { this.consume(); break; }
-            if(t.type === "EOF")    { this.errorAt(t, "unexpected end of input in COMPUTE"); }
+            if(t.type === "PERIOD")          { this.consume(); break; }
+            if(this.isStatementBoundary(t))  { break; }
+            if(t.type === "EOF")             { this.errorAt(t, "unexpected end of input in COMPUTE"); }
 
             expressionTokens.push(t);
             this.consume();
@@ -273,7 +296,7 @@ class Parser
         const startTok = this.consume();
 
         this.expect("KEYWORD", "RUN");
-        this.expect("PERIOD");
+        this.expectStatementEnd();
 
         return { kind: "STOP_RUN", line: startTok.line };
     }
@@ -281,7 +304,7 @@ class Parser
     parseGoback()
     {
         const startTok = this.consume();
-        this.expect("PERIOD");
+        this.expectStatementEnd();
 
         return { kind: "GOBACK", line: startTok.line };
     }
@@ -302,17 +325,16 @@ class Parser
         else if(this.matchKeyword("PROGRAM"))   { this.consume(); form = "PROGRAM"; }
         else if(this.matchKeyword("PERFORM"))   { this.consume(); form = "PERFORM"; }
 
-        this.expect("PERIOD");
+        this.expectStatementEnd();
 
         return { kind: "EXIT", form, line: startTok.line };
     }
 
     // IF condition [THEN] statements [ELSE statements] END-IF [.]
     //
-    // Statements inside THEN/ELSE bodies must each terminate with a
-    // period. The looser COBOL '85 form (period-less inner statements
-    // with END-IF as implicit terminator) is recorded under PLAN.md
-    // Follow Up as "Period-less statements inside IF bodies".
+    // Inner statements may either each carry a period or be separated
+    // by whitespace alone — `END-IF` (and `ELSE` between branches) acts
+    // as an implicit terminator via `STATEMENT_BOUNDARY_KEYWORDS`.
     parseIf()
     {
         const startTok = this.consume();
@@ -352,9 +374,10 @@ class Parser
         const targetTok = this.expect("IDENTIFIER");
         const target = targetTok.value;
 
-        if(this.peek().type === "PERIOD")
+        // Bare PERFORM <para> — terminator (period or boundary) immediately.
+        if(this.peek().type === "PERIOD" || this.isStatementBoundary(this.peek()))
         {
-            this.consume();
+            this.expectStatementEnd();
 
             return { kind: "PERFORM", form: "SIMPLE", target, line: startTok.line };
         }
@@ -363,7 +386,7 @@ class Parser
         {
             this.consume();
             const condition = Conditions.parseCondition(this);
-            this.expect("PERIOD");
+            this.expectStatementEnd();
 
             return { kind: "PERFORM", form: "UNTIL", target, condition, line: startTok.line };
         }
@@ -383,14 +406,14 @@ class Parser
             this.expect("KEYWORD", "UNTIL");
             const condition = Conditions.parseCondition(this);
 
-            this.expect("PERIOD");
+            this.expectStatementEnd();
 
             return { kind: "PERFORM", form: "VARYING", target, varName: varTok.value, from, by, condition, line: startTok.line };
         }
 
         const count = this.parseOperand();
         this.expect("KEYWORD", "TIMES");
-        this.expect("PERIOD");
+        this.expectStatementEnd();
 
         return { kind: "PERFORM", form: "TIMES", target, count, line: startTok.line };
     }
@@ -425,6 +448,7 @@ class Parser
 
             if(t.type === "PERIOD" || t.type === "EOF")                       { break; }
             if(t.type === "KEYWORD" && stopKeywords.includes(t.value))        { break; }
+            if(this.isStatementBoundary(t))                                   { break; }
 
             operands.push(this.parseOperand());
         }
@@ -442,6 +466,7 @@ class Parser
 
             if(t.type === "PERIOD" || t.type === "EOF")                       { break; }
             if(t.type === "KEYWORD" && stopKeywords.includes(t.value))        { break; }
+            if(this.isStatementBoundary(t))                                   { break; }
 
             if(t.type !== "IDENTIFIER")
             {
@@ -571,6 +596,25 @@ class Parser
         const t = this.peek();
 
         return t.type === "KEYWORD" && t.value === value;
+    }
+
+    isStatementBoundary(token)
+    {
+        return token.type === "KEYWORD" && STATEMENT_BOUNDARY_KEYWORDS.has(token.value);
+    }
+
+    // Statement terminator. Either a PERIOD (consumed) or a boundary
+    // keyword (peeked, left for the surrounding scope to handle). Used
+    // by every statement parser so periods are optional inside an IF
+    // body, before another statement, or before END-IF / ELSE.
+    expectStatementEnd()
+    {
+        const t = this.peek();
+
+        if(t.type === "PERIOD")          { this.consume(); return; }
+        if(this.isStatementBoundary(t))  { return; }
+
+        this.errorExpected(t, "PERIOD");
     }
 
     consume()

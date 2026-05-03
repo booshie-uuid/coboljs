@@ -1176,6 +1176,151 @@ suite("Interpreter", () =>
         });
     });
 
+    suite("period-less IF bodies", () =>
+    {
+        test("single DISPLAY without period inside IF body", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/period-less-if-bodies/display-without-period.cbl")
+            );
+
+            expect(out.lines).toEqual(["ZERO"]);
+        });
+
+        test("multiple statements without periods in THEN body", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/period-less-if-bodies/multiple-statements-without-periods.cbl")
+            );
+
+            expect(out.lines).toEqual(["ZERO", "15", "DONE"]);
+        });
+
+        test("ELSE branch with period-less statements", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/period-less-if-bodies/else-branch-without-periods.cbl")
+            );
+
+            expect(out.lines).toEqual(["NON-ZERO", "MOVING-ON"]);
+        });
+
+        test("nested IF inside IF, both period-less", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/period-less-if-bodies/nested-if-without-periods.cbl")
+            );
+
+            expect(out.lines).toEqual(["X-ZERO", "Y-BIG", "0"]);
+        });
+
+        test("COMPUTE and PERFORM as period-less inner statements", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/period-less-if-bodies/compute-and-perform-without-periods.cbl")
+            );
+
+            expect(out.lines).toEqual(["014", "WOO", "WOO"]);
+        });
+
+        test("STOP RUN as period-less inner statement halts the program", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/period-less-if-bodies/stop-run-inside-if-without-period.cbl")
+            );
+
+            expect(out.lines).toEqual(["BEFORE", "HALTING"]);
+        });
+
+        test("mixed period and period-less statements coexist in one body", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/period-less-if-bodies/mixed-period-and-period-less.cbl")
+            );
+
+            expect(out.lines).toEqual(["FIRST", "SECOND", "THIRD", "FOURTH"]);
+        });
+    });
+
+    suite("coverage gaps", () =>
+    {
+        test("ACCEPT into a numeric PIC with non-numeric input throws CobolRuntimeError", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    loadFixture("interpreter/coverage-gaps/accept-non-numeric-into-numeric.cbl"),
+                    ["banana"]
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("invalid numeric data")).toBe(true);
+        });
+
+        test("COMPUTE result assigned to an alpha PIC throws CobolRuntimeError", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    loadFixture("interpreter/coverage-gaps/compute-result-into-alpha.cbl")
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+        });
+
+        test("Empty PROCEDURE DIVISION runs without error", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/coverage-gaps/empty-procedure-division.cbl")
+            );
+
+            expect(out.lines).toEqual([]);
+        });
+
+        test("Program with no PROCEDURE DIVISION at all runs without error", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/coverage-gaps/no-procedure-division.cbl")
+            );
+
+            expect(out.lines).toEqual([]);
+        });
+
+        test("Group DISPLAY concatenates mixed-kind children correctly", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/coverage-gaps/group-display-mixed-children.cbl")
+            );
+
+            expect(out.lines).toEqual(["ITEM:042 /1995"]);
+        });
+
+        test("Error line number is the line of the failing statement, even deep in nested IF", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    loadFixture("interpreter/coverage-gaps/error-line-deep-in-nested-if.cbl")
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            // DIVIDE statement is on line 12 of the fixture.
+            expect(thrown.line).toBe(12);
+        });
+    });
+
     suite("integration", () =>
     {
         test("HELLO-WORLD fixture runs end to end", async () =>

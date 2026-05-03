@@ -43,7 +43,7 @@ function parseAdd(parser)
         parser.errorExpected(parser.peek(), "TO or GIVING in ADD");
     }
 
-    parser.expect("PERIOD");
+    parser.expectStatementEnd();
 
     if(targets.length === 0) { parser.errorAt(startTok, "ADD requires at least one target"); }
 
@@ -87,7 +87,7 @@ function parseSubtract(parser)
         targets = [firstAfterFrom, ...parser.parseIdentifiersUntilKeyword()];
     }
 
-    parser.expect("PERIOD");
+    parser.expectStatementEnd();
 
     if(targets.length === 0) { parser.errorAt(startTok, "SUBTRACT requires at least one target"); }
 
@@ -129,7 +129,7 @@ function parseMultiply(parser)
         targets = [second, ...parser.parseIdentifiersUntilKeyword()];
     }
 
-    parser.expect("PERIOD");
+    parser.expectStatementEnd();
 
     if(targets.length === 0) { parser.errorAt(startTok, "MULTIPLY requires at least one target"); }
 
@@ -193,7 +193,7 @@ function parseDivide(parser)
         targets = [second, ...parser.parseIdentifiersUntilKeyword()];
     }
 
-    parser.expect("PERIOD");
+    parser.expectStatementEnd();
 
     if(targets.length === 0) { parser.errorAt(startTok, "DIVIDE requires at least one target"); }
 

@@ -1,0 +1,16 @@
+ IDENTIFICATION DIVISION.
+ PROGRAM-ID. P.
+ DATA DIVISION.
+ WORKING-STORAGE SECTION.
+ 01 X PIC 9 VALUE 0.
+ 01 Y PIC 9 VALUE 0.
+ 01 Z PIC 9 VALUE 0.
+ PROCEDURE DIVISION.
+     IF X = 0
+         IF Y = 0
+             IF Z = 0
+                 DIVIDE 1 BY 0 GIVING X.
+             END-IF
+         END-IF
+     END-IF.
+     STOP RUN.

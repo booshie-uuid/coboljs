@@ -1,0 +1,16 @@
+ IDENTIFICATION DIVISION.
+ PROGRAM-ID. P.
+ DATA DIVISION.
+ WORKING-STORAGE SECTION.
+ 01 X PIC 9 VALUE 0.
+ 01 Y PIC 9 VALUE 5.
+ PROCEDURE DIVISION.
+     IF X = 0
+         DISPLAY "X-ZERO"
+         IF Y > 3
+             DISPLAY "Y-BIG"
+             MOVE 0 TO Y
+         END-IF
+         DISPLAY Y
+     END-IF.
+     STOP RUN.
