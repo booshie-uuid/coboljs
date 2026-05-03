@@ -355,6 +355,9 @@ body
 
 .panel-title
 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 6px 12px;
     border-bottom: 1px solid var(--border-soft);
     color: var(--neon-cyan);
@@ -363,6 +366,27 @@ body
     text-transform: uppercase;
     background: linear-gradient(90deg, rgba(0, 246, 255, 0.08), transparent 70%);
     text-shadow: var(--glow-cyan);
+}
+
+.panel-action
+{
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-shadow: none;
+    cursor: pointer;
+    transition: color 0.12s, text-shadow 0.12s;
+}
+
+.panel-action:hover
+{
+    color: var(--neon-magenta);
+    text-shadow: var(--glow-magenta);
 }
 
 .panel-body

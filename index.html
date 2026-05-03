@@ -69,7 +69,7 @@
                 <button class="btn" data-bind="click: saveProgram">SAVE</button>
                 <div class="examples-wrapper" data-bind="closeOnOutsideClick: examplesOpen">
                     <button class="btn" data-bind="click: toggleExamples, css: { 'btn-active': examplesOpen }">DEMOS</button>
-                    <ul class="examples-menu" data-bind="visible: examplesOpen, foreach: examplesList">
+                    <ul class="examples-menu" style="display: none" data-bind="visible: examplesOpen, foreach: examplesList">
                         <li class="examples-menu-item">
                             <button class="examples-menu-btn" data-bind="click: $root.loadExample">
                                 <span class="examples-menu-name" data-bind="text: name"></span>
@@ -83,7 +83,10 @@
         </nav>
 
         <section class="panel panel-console">
-            <div class="panel-title">[ CONSOLE ]</div>
+            <div class="panel-title">
+                <span>[ CONSOLE ]</span>
+                <button class="panel-action" data-bind="click: clearConsole">[ CLEAR ]</button>
+            </div>
             <div class="panel-body console-body" data-bind="autoScrollBottom: console.lines">
                 <!-- ko foreach: { data: console.lines, as: 'line' } -->
                 <div class="console-line" data-bind="css: 'console-line-' + line.kind, text: line.text"></div>
