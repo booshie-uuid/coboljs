@@ -68,11 +68,11 @@ suite("Examples", () =>
 {
     suite("manifest", () =>
     {
-        test("list() returns five entries with name and description", () =>
+        test("list() returns six entries with name and description", () =>
         {
             const entries = Examples.list();
 
-            expect(entries.length).toBe(5);
+            expect(entries.length).toBe(6);
 
             for(const entry of entries)
             {
@@ -83,7 +83,7 @@ suite("Examples", () =>
             }
         });
 
-        test("list() includes the canonical five names", () =>
+        test("list() includes the canonical six names", () =>
         {
             const names = Examples.list().map(e => e.name);
 
@@ -92,7 +92,8 @@ suite("Examples", () =>
                 "FIZZBUZZ",
                 "FIBONACCI",
                 "MORTGAGE-CALC",
-                "GUESS-THE-NUMBER"
+                "GUESS-THE-NUMBER",
+                "FORTUNE-COOKIE"
             ]);
         });
 
@@ -183,6 +184,59 @@ suite("Examples", () =>
 
                 expect(last.includes("YOU GOT IT IN")).toBe(true);
                 expect(last.includes("04")).toBe(true);
+            }
+            finally { Math.random = originalRandom; }
+        });
+
+        test("FORTUNE-COOKIE picks a fortune and renders mirror/whisper variants", async () =>
+        {
+            // Stub Math.random so PICK = INTEGER(0.51 * 6) + 1 = 4 ("TRUST THE SHADOWS.")
+            const originalRandom = Math.random;
+            Math.random = () => 0.51;
+
+            try
+            {
+                const source = loadExampleSource("fortune-cookie.cbl");
+                const lines = await runSource(source, ["MATT"]);
+
+                expect(lines.some(l => l.includes("HELLO,    MATT!"))).toBe(true);
+                expect(lines.some(l => l.includes("MIRROR:   TTAM"))).toBe(true);
+                expect(lines.some(l => l.includes("WHISPER:  matt"))).toBe(true);
+                expect(lines.some(l => l.includes("TRUST THE SHADOWS"))).toBe(true);
+
+                // LENGTH("MATT") = 4; MOD(4, 9) + 1 = 5 → padded to "05"
+                expect(lines.some(l => l.includes("LUCKY NUMBER: 05"))).toBe(true);
+            }
+            finally { Math.random = originalRandom; }
+        });
+
+        test("FORTUNE-COOKIE reveals palindrome easter egg for ANNA", async () =>
+        {
+            const originalRandom = Math.random;
+            Math.random = () => 0.0;
+
+            try
+            {
+                const source = loadExampleSource("fortune-cookie.cbl");
+                const lines = await runSource(source, ["anna"]);
+
+                expect(lines.some(l => l.includes("PALINDROME NAME"))).toBe(true);
+                expect(lines.some(l => l.includes("MIRROR:   ANNA"))).toBe(true);
+            }
+            finally { Math.random = originalRandom; }
+        });
+
+        test("FORTUNE-COOKIE falls back to SEEKER for empty input", async () =>
+        {
+            const originalRandom = Math.random;
+            Math.random = () => 0.0;
+
+            try
+            {
+                const source = loadExampleSource("fortune-cookie.cbl");
+                const lines = await runSource(source, [""]);
+
+                expect(lines.some(l => l.includes("HELLO,    SEEKER!"))).toBe(true);
             }
             finally { Math.random = originalRandom; }
         });

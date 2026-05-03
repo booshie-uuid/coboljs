@@ -1,0 +1,71 @@
+ IDENTIFICATION DIVISION.
+ PROGRAM-ID. FORTUNE-COOKIE.
+
+*> Crack open a digital fortune cookie. Picks a random
+*> fortune from a small set, derives a lucky number from
+*> the length of your name, and reveals a hidden double
+*> fortune for palindrome names.
+*>
+*> Showcases every intrinsic function we support — RANDOM,
+*> INTEGER, MOD, LENGTH, UPPER-CASE, LOWER-CASE, TRIM,
+*> REVERSE — and uses FUNCTION calls in MOVE, DISPLAY,
+*> COMPUTE, and IF operand positions.
+
+ DATA DIVISION.
+ WORKING-STORAGE SECTION.
+ 01 NAME       PIC X(30).
+ 01 NAME-UPPER PIC X(30).
+ 01 PICK       PIC 9.
+ 01 LUCKY      PIC 9(2).
+
+ PROCEDURE DIVISION.
+ MAIN.
+     DISPLAY "*** FORTUNE COOKIE ***".
+     DISPLAY "WHAT IS YOUR NAME? " WITH NO ADVANCING.
+     ACCEPT NAME.
+
+     IF FUNCTION LENGTH(FUNCTION TRIM(NAME)) = 0
+         MOVE "SEEKER" TO NAME.
+     END-IF.
+
+     MOVE FUNCTION UPPER-CASE(FUNCTION TRIM(NAME)) TO NAME-UPPER.
+
+     DISPLAY " ".
+     DISPLAY "  HELLO,    " FUNCTION TRIM(NAME-UPPER) "!".
+     DISPLAY "  MIRROR:   " FUNCTION REVERSE(FUNCTION TRIM(NAME-UPPER)).
+     DISPLAY "  WHISPER:  " FUNCTION LOWER-CASE(FUNCTION TRIM(NAME-UPPER)).
+
+     COMPUTE LUCKY = FUNCTION MOD(FUNCTION LENGTH(FUNCTION TRIM(NAME-UPPER)), 9) + 1.
+     COMPUTE PICK  = FUNCTION INTEGER(FUNCTION RANDOM * 6) + 1.
+
+     DISPLAY " ".
+     DISPLAY "  THE COOKIE READS:".
+
+     IF PICK = 1
+         DISPLAY "    'THE ANSWER YOU SEEK IS WITHIN.'".
+     END-IF.
+     IF PICK = 2
+         DISPLAY "    'AN UNEXPECTED JOURNEY APPROACHES.'".
+     END-IF.
+     IF PICK = 3
+         DISPLAY "    'PATIENCE WILL REWARD YOU.'".
+     END-IF.
+     IF PICK = 4
+         DISPLAY "    'TRUST THE SHADOWS.'".
+     END-IF.
+     IF PICK = 5
+         DISPLAY "    'TODAY IS YOUR LUCKY DAY.'".
+     END-IF.
+     IF PICK = 6
+         DISPLAY "    'SOMEONE FROM YOUR PAST WILL CALL.'".
+     END-IF.
+
+     DISPLAY " ".
+     DISPLAY "  LUCKY NUMBER: " LUCKY.
+
+     IF FUNCTION TRIM(NAME-UPPER) = FUNCTION REVERSE(FUNCTION TRIM(NAME-UPPER))
+         DISPLAY " ".
+         DISPLAY "  *** PALINDROME NAME — DOUBLE FORTUNE ***".
+     END-IF.
+
+     STOP RUN.

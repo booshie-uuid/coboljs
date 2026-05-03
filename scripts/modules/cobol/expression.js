@@ -5,39 +5,51 @@ import { CobolSyntaxError, CobolRuntimeError } from "./errors.js";
 /* EXPRESSION EVALUATOR                                                       */
 /******************************************************************************/
 
-// Recursive-descent parser/evaluator for COBOL arithmetic expressions.
-// Walks a flat token array (a slice produced by the Parser) and returns
-// the numeric result.
+// Recursive-descent parser/evaluator for COBOL expressions. Walks a flat
+// token array (a slice produced by the Parser) and returns a polymorphic
+// value — either a JS number or a JS string. Arithmetic operators reject
+// string operands at runtime; intrinsic functions declare their argument
+// types and the evaluator validates each call.
 //
 // Grammar (precedence low → high):
 //   expression := term (('+' | '-') term)*
 //   term       := unary (('*' | '/') unary)*
 //   unary      := ('-' | '+') unary | factor
 //   factor     := primary ('**' unary)?            // right-associative
-//   primary    := NUMBER | IDENTIFIER | '(' expression ')' | functionCall
+//   primary    := NUMBER | STRING | IDENTIFIER | '(' expression ')' | functionCall
 //   functionCall := FUNCTION IDENTIFIER ('(' expression (',' expression)* ')')?
 //
 // Right-associative `**` is encoded by recursing through `unary` on the
 // right side; that also lets `2 ** -3` parse without an extra rule.
 //
 // Identifier values are resolved via a per-call callback that receives
-// `(name, line)` and returns a number — the caller emits a positioned
-// runtime error if the name is undefined. Stateless across calls (the
-// `tokens`/`pos` cursor is reset on each `evaluate`), so a single shared
-// instance can be reused — matters in PERFORM-VARYING loops over
-// expressions. Also called from condition parsing for the two arithmetic
-// sub-expressions of a comparison.
-//
-// Intrinsic functions are looked up in INTRINSICS by upper-cased name.
-// v0.1 ships numeric-in/numeric-out only (RANDOM, INTEGER, MOD); string
-// functions need a separate evaluation path and are deferred.
+// `(name, line)` and returns either a number or a string depending on the
+// item's PIC kind. Stateless across calls (the `tokens`/`pos` cursor is
+// reset on each `evaluate`), so a single shared instance can be reused —
+// matters in PERFORM-VARYING loops over expressions. Also called from
+// condition parsing for the two operand sub-expressions of a comparison.
 
 
 const INTRINSICS = {
-    RANDOM:  { arity: 0, call: () => Math.random()                                            },
-    INTEGER: { arity: 1, call: ([x])    => Math.floor(x)                                      },
-    MOD:     { arity: 2, call: ([a, b]) => a - Math.floor(a / b) * b                          }
+    RANDOM:       { argTypes: [],                   call: ()       => Math.random()                          },
+    INTEGER:      { argTypes: ["number"],           call: ([x])    => Math.floor(x)                          },
+    MOD:          { argTypes: ["number", "number"], call: ([a, b]) => a - Math.floor(a / b) * b              },
+
+    LENGTH:       { argTypes: ["string"],           call: ([s])    => s.length                               },
+    "UPPER-CASE": { argTypes: ["string"],           call: ([s])    => s.toUpperCase()                        },
+    "LOWER-CASE": { argTypes: ["string"],           call: ([s])    => s.toLowerCase()                        },
+    REVERSE:      { argTypes: ["string"],           call: ([s])    => [...s].reverse().join("")              },
+    TRIM:         { argTypes: ["string"],           call: ([s])    => s.trim()                               }
 };
+
+
+function requireNumber(value, line, context)
+{
+    if(typeof value === "number") { return value; }
+
+    throw new CobolRuntimeError(line, `${context} requires a number, got ${typeof value}`);
+}
+
 
 class ExpressionEvaluator
 {
@@ -73,7 +85,10 @@ class ExpressionEvaluator
             const op = this.consume();
             const right = this.parseTerm();
 
-            left = (op.value === "+")? left + right: left - right;
+            const a = requireNumber(left,  op.line, `operator "${op.value}"`);
+            const b = requireNumber(right, op.line, `operator "${op.value}"`);
+
+            left = (op.value === "+")? a + b: a - b;
         }
 
         return left;
@@ -88,9 +103,12 @@ class ExpressionEvaluator
             const op = this.consume();
             const right = this.parseUnary();
 
-            if(op.value === "/" && right === 0) { throw new CobolRuntimeError(op.line, "Division by zero"); }
+            const a = requireNumber(left,  op.line, `operator "${op.value}"`);
+            const b = requireNumber(right, op.line, `operator "${op.value}"`);
 
-            left = (op.value === "*")? left * right: left / right;
+            if(op.value === "/" && b === 0) { throw new CobolRuntimeError(op.line, "Division by zero"); }
+
+            left = (op.value === "*")? a * b: a / b;
         }
 
         return left;
@@ -103,7 +121,9 @@ class ExpressionEvaluator
             const op = this.consume();
             const value = this.parseUnary();
 
-            return op.value === "-"? -value: value;
+            const n = requireNumber(value, op.line, `unary "${op.value}"`);
+
+            return op.value === "-"? -n: n;
         }
 
         return this.parseFactor();
@@ -115,10 +135,13 @@ class ExpressionEvaluator
 
         if(this.matchOperator("**"))
         {
-            this.consume();
+            const op = this.consume();
             const right = this.parseUnary();
 
-            return left ** right;
+            const a = requireNumber(left,  op.line, `operator "**"`);
+            const b = requireNumber(right, op.line, `operator "**"`);
+
+            return a ** b;
         }
 
         return left;
@@ -135,6 +158,13 @@ class ExpressionEvaluator
             this.consume();
 
             return parseFloat(t.value);
+        }
+
+        if(t.type === "STRING")
+        {
+            this.consume();
+
+            return t.value;
         }
 
         if(t.type === "KEYWORD" && t.value === "FUNCTION")
@@ -220,9 +250,20 @@ class ExpressionEvaluator
             this.consume();
         }
 
-        if(args.length !== intrinsic.arity)
+        if(args.length !== intrinsic.argTypes.length)
         {
-            throw new CobolSyntaxError(nameTok.line, `FUNCTION ${nameTok.value} expects ${intrinsic.arity} argument(s), got ${args.length}`);
+            throw new CobolSyntaxError(nameTok.line, `FUNCTION ${nameTok.value} expects ${intrinsic.argTypes.length} argument(s), got ${args.length}`);
+        }
+
+        for(let i = 0; i < args.length; i++)
+        {
+            const expected = intrinsic.argTypes[i];
+            const actual = typeof args[i];
+
+            if(actual !== expected)
+            {
+                throw new CobolRuntimeError(nameTok.line, `FUNCTION ${nameTok.value} argument ${i + 1} expects ${expected}, got ${actual}`);
+            }
         }
 
         return intrinsic.call(args);

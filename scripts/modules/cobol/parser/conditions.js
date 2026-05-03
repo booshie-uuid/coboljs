@@ -131,10 +131,9 @@ function parseComparison(parser)
 /* HELPERS                                                                    */
 /******************************************************************************/
 
-// Reads tokens for a single arithmetic expression. Stops on:
-//   - KEYWORD or PERIOD at any depth — neither appears inside an arithmetic
-//     expression, so encountering one means the expression has ended (next
-//     statement, IF terminator, AND/OR/NOT, etc.)
+// Reads tokens for a single expression. Stops on:
+//   - KEYWORD or PERIOD at any depth — neither appears inside an
+//     expression, with the exception of FUNCTION (intrinsic call kicker).
 //   - top-level comparison operator (=, <, >, <=, >=)
 //   - unmatched RPAREN
 // Balanced parens are consumed wholesale and handed to ExpressionEvaluator
@@ -148,9 +147,9 @@ function readExpressionSlice(parser)
     {
         const t = parser.peek();
 
-        if(!t || t.type === "EOF") { break; }
-        if(t.type === "KEYWORD")   { break; }
-        if(t.type === "PERIOD")    { break; }
+        if(!t || t.type === "EOF")                         { break; }
+        if(t.type === "KEYWORD" && t.value !== "FUNCTION") { break; }
+        if(t.type === "PERIOD")                            { break; }
 
         if(t.type === "LPAREN")
         {

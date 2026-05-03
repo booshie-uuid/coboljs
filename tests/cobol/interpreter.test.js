@@ -1039,6 +1039,143 @@ suite("Interpreter", () =>
         });
     });
 
+    suite("string conditions", () =>
+    {
+        test("identifier = literal: trailing-space padding rtrimmed", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/string-conditions/identifier-equals-literal.cbl")
+            );
+
+            expect(out.lines).toEqual(["MATCH"]);
+        });
+
+        test("identifier != literal takes ELSE branch", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/string-conditions/identifier-not-equal-literal.cbl")
+            );
+
+            expect(out.lines).toEqual(["NO"]);
+        });
+
+        test("ordering uses lexicographic compare", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/string-conditions/ordering-uses-lexicographic.cbl")
+            );
+
+            expect(out.lines).toEqual(["BEFORE-Z", "AFTER-A"]);
+        });
+
+        test("UPPER-CASE normalises input before comparing", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/string-conditions/upper-case-normalises-input.cbl")
+            );
+
+            expect(out.lines).toEqual(["MATCH"]);
+        });
+
+        test("LENGTH of TRIMmed alpha resolves to a number for COMPUTE", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/string-conditions/length-in-numeric-context.cbl")
+            );
+
+            expect(out.lines).toEqual(["04"]);
+        });
+
+        test("string vs number compare throws CobolRuntimeError", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    loadFixture("interpreter/string-conditions/mixed-type-compare-throws.cbl")
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("cannot compare")).toBe(true);
+        });
+    });
+
+    suite("FUNCTION as operand", () =>
+    {
+        test("DISPLAY of FUNCTION UPPER-CASE", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/function-as-operand/display-of-upper-case.cbl")
+            );
+
+            expect(out.lines).toEqual(["MATT      "]);
+        });
+
+        test("DISPLAY mixes literal and FUNCTION operands on one line", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/function-as-operand/display-mixes-literal-and-function.cbl")
+            );
+
+            expect(out.lines).toEqual(["HELLO MATT!"]);
+        });
+
+        test("MOVE FUNCTION UPPER-CASE TO target", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/function-as-operand/move-upper-case-to-target.cbl")
+            );
+
+            expect(out.lines).toEqual(["MATT      "]);
+        });
+
+        test("MOVE FUNCTION INTEGER TO numeric target", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/function-as-operand/move-numeric-function-to-numeric-target.cbl")
+            );
+
+            expect(out.lines).toEqual(["007"]);
+        });
+
+        test("ADD with FUNCTION MOD as source", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/function-as-operand/add-uses-function-source.cbl")
+            );
+
+            expect(out.lines).toEqual(["011"]);
+        });
+
+        test("PERFORM ... TIMES with FUNCTION INTEGER count", async () =>
+        {
+            const out = await execute(
+                loadFixture("interpreter/function-as-operand/perform-times-with-function-count.cbl")
+            );
+
+            expect(out.lines).toEqual(["WOO", "WOO", "WOO"]);
+        });
+
+        test("MOVE string-returning FUNCTION to numeric target throws", async () =>
+        {
+            let thrown = null;
+
+            try
+            {
+                await execute(
+                    loadFixture("interpreter/function-as-operand/move-string-function-to-numeric-target-throws.cbl")
+                );
+            }
+            catch(error) { thrown = error; }
+
+            expect(thrown instanceof CobolRuntimeError).toBe(true);
+            expect(thrown.message.includes("invalid numeric data")).toBe(true);
+        });
+    });
+
     suite("integration", () =>
     {
         test("HELLO-WORLD fixture runs end to end", async () =>

@@ -210,4 +210,88 @@ suite("ExpressionEvaluator", () =>
             expect(() => evaluate("FUNCTION 7")).toThrow("expected function name");
         });
     });
+
+    suite("string primaries", () =>
+    {
+        test("string literal evaluates to its content", () =>
+        {
+            expect(evaluate(`"HELLO"`)).toBe("HELLO");
+        });
+
+        test("identifier resolving to a string returns the string", () =>
+        {
+            expect(evaluate("NAME", { NAME: "MATT" })).toBe("MATT");
+        });
+
+        test("parens around a string literal pass through", () =>
+        {
+            expect(evaluate(`("HELLO")`)).toBe("HELLO");
+        });
+    });
+
+    suite("string intrinsic functions", () =>
+    {
+        test("FUNCTION LENGTH on a literal", () =>
+        {
+            expect(evaluate(`FUNCTION LENGTH("HELLO")`)).toBe(5);
+        });
+
+        test("FUNCTION LENGTH on a resolver-supplied identifier", () =>
+        {
+            expect(evaluate("FUNCTION LENGTH(NAME)", { NAME: "MATT" })).toBe(4);
+        });
+
+        test("FUNCTION UPPER-CASE", () =>
+        {
+            expect(evaluate(`FUNCTION UPPER-CASE("hello")`)).toBe("HELLO");
+        });
+
+        test("FUNCTION LOWER-CASE", () =>
+        {
+            expect(evaluate(`FUNCTION LOWER-CASE("HELLO")`)).toBe("hello");
+        });
+
+        test("FUNCTION REVERSE", () =>
+        {
+            expect(evaluate(`FUNCTION REVERSE("ABC")`)).toBe("CBA");
+        });
+
+        test("FUNCTION TRIM strips leading and trailing spaces", () =>
+        {
+            expect(evaluate(`FUNCTION TRIM("  hi  ")`)).toBe("hi");
+        });
+
+        test("string-arg intrinsic rejects a numeric arg", () =>
+        {
+            expect(() => evaluate("FUNCTION UPPER-CASE(42)")).toThrow("expects string, got number");
+        });
+
+        test("number-arg intrinsic rejects a string arg", () =>
+        {
+            expect(() => evaluate(`FUNCTION INTEGER("x")`)).toThrow("expects number, got string");
+        });
+
+        test("nested string functions compose", () =>
+        {
+            expect(evaluate(`FUNCTION UPPER-CASE(FUNCTION TRIM("  matt  "))`)).toBe("MATT");
+        });
+    });
+
+    suite("type-checked arithmetic", () =>
+    {
+        test("string operand on + throws runtime error", () =>
+        {
+            expect(() => evaluate(`"hi" + 1`)).toThrow(`requires a number, got string`);
+        });
+
+        test("string operand on * throws runtime error", () =>
+        {
+            expect(() => evaluate(`2 * "hi"`)).toThrow(`requires a number, got string`);
+        });
+
+        test("string operand on unary - throws runtime error", () =>
+        {
+            expect(() => evaluate(`-"hi"`)).toThrow(`requires a number, got string`);
+        });
+    });
 });

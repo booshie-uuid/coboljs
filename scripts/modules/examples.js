@@ -15,7 +15,8 @@ const MANIFEST = [
     { name: "FIZZBUZZ",         description: "Classic FizzBuzz — arithmetic, IF, nested PERFORM",       fileName: "fizzbuzz.cbl"         },
     { name: "FIBONACCI",        description: "Fibonacci sequence — PERFORM UNTIL with running totals",  fileName: "fibonacci.cbl"        },
     { name: "MORTGAGE-CALC",    description: "Monthly payment via COMPUTE with V-decimal PICs",         fileName: "mortgage-calc.cbl"    },
-    { name: "GUESS-THE-NUMBER", description: "Interactive — ACCEPT in a loop with IF/ELSE feedback",    fileName: "guess-the-number.cbl" }
+    { name: "GUESS-THE-NUMBER", description: "Interactive — ACCEPT in a loop with IF/ELSE feedback",    fileName: "guess-the-number.cbl" },
+    { name: "FORTUNE-COOKIE",   description: "Random fortune + lucky number — every intrinsic in use",  fileName: "fortune-cookie.cbl"   }
 ];
 
 const sources = new Map();

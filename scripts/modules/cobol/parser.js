@@ -473,6 +473,15 @@ class Parser
             return { kind: "literal", literalType: "number", value, line: signTok.line };
         }
 
+        // FUNCTION call as an operand (MOVE / DISPLAY / arithmetic source /
+        // PERFORM TIMES count / PERFORM VARYING FROM/BY). The token slice
+        // is captured as-is and handed to ExpressionEvaluator at runtime —
+        // same machinery COMPUTE and conditions use.
+        if(peeked.type === "KEYWORD" && peeked.value === "FUNCTION")
+        {
+            return this.parseFunctionCallOperand();
+        }
+
         const t = this.consume();
 
         if(t.type === "STRING")
@@ -491,6 +500,45 @@ class Parser
         }
 
         this.errorExpected(t, "operand");
+    }
+
+    parseFunctionCallOperand()
+    {
+        const startTok = this.consume();
+        const tokens = [startTok];
+
+        const nameTok = this.peek();
+
+        if(!nameTok || nameTok.type !== "IDENTIFIER")
+        {
+            this.errorExpected(nameTok, "function name after FUNCTION");
+        }
+
+        tokens.push(this.consume());
+
+        // Paren-less FUNCTION RANDOM is legal — only consume an arg list
+        // if `(` follows immediately. Inside the list, balance LPAREN /
+        // RPAREN so nested calls and parenthesised sub-expressions get
+        // captured as part of the same slice.
+        if(this.peek()?.type === "LPAREN")
+        {
+            let depth = 0;
+
+            do
+            {
+                const t = this.peek();
+
+                if(!t || t.type === "EOF") { this.errorAt(startTok, `unterminated FUNCTION ${nameTok.value} arguments`); }
+
+                tokens.push(this.consume());
+
+                if(t.type === "LPAREN")      { depth++; }
+                else if(t.type === "RPAREN") { depth--; }
+            }
+            while(depth > 0);
+        }
+
+        return { kind: "expression", tokens, line: startTok.line };
     }
 
 

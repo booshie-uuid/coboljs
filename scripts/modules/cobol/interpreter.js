@@ -47,6 +47,27 @@ class ExitPerformSignal extends Error
 }
 
 
+// COBOL string compares treat trailing spaces as padding — `"MATT" =
+// "MATT      "` is true. PIC X(n) items are space-padded to n on assign,
+// so right-trimming both operands gives equality + ordering that matches
+// the spec for most practical cases. Mismatched types throw — there's
+// no implicit string↔number coercion in our subset.
+function normalizeForCompare(left, right, line)
+{
+    if(typeof left === "string" && typeof right === "string")
+    {
+        return [left.replace(/ +$/, ""), right.replace(/ +$/, "")];
+    }
+
+    if(typeof left === "number" && typeof right === "number")
+    {
+        return [left, right];
+    }
+
+    throw new CobolRuntimeError(line, `cannot compare ${typeof left} to ${typeof right}`);
+}
+
+
 class Interpreter
 {
     constructor(program, consoleHandle)
@@ -57,8 +78,19 @@ class Interpreter
 
         // Bind once so each COMPUTE/condition evaluation can hand the
         // same function reference to ExpressionEvaluator without
-        // allocating a fresh closure per call.
-        this.resolveNumeric = (name, line) => this.lookupName(name, line).getNumeric();
+        // allocating a fresh closure per call. Polymorphic by design:
+        // the evaluator dispatches on the JS typeof at each operator,
+        // so an alpha-PIC item resolves to its display string and a
+        // numeric item resolves to its number.
+        this.resolveValue = (name, line) =>
+        {
+            const item = this.lookupName(name, line);
+
+            if(item.isGroup())              { return item.getDisplay(); }
+            if(item.pic.kind === "numeric") { return item.getNumeric(); }
+
+            return item.getDisplay();
+        };
     }
 
     async execute()
@@ -261,7 +293,12 @@ class Interpreter
 
     executeCompute(statement)
     {
-        const result = this.evaluator.evaluate(statement.expressionTokens, this.resolveNumeric);
+        const result = this.evaluator.evaluate(statement.expressionTokens, this.resolveValue);
+
+        if(typeof result !== "number")
+        {
+            throw new CobolRuntimeError(statement.line, `COMPUTE expression must produce a number, got ${typeof result}`);
+        }
 
         this.lookupItem(statement.target).assign(result);
     }
@@ -366,8 +403,10 @@ class Interpreter
 
     evaluateCompare(node)
     {
-        const left  = this.evaluator.evaluate(node.left,  this.resolveNumeric);
-        const right = this.evaluator.evaluate(node.right, this.resolveNumeric);
+        const rawLeft  = this.evaluator.evaluate(node.left,  this.resolveValue);
+        const rawRight = this.evaluator.evaluate(node.right, this.resolveValue);
+
+        const [left, right] = normalizeForCompare(rawLeft, rawRight, node.line);
 
         switch(node.op)
         {
@@ -397,6 +436,11 @@ class Interpreter
             return this.lookupItem(operand).getDisplay();
         }
 
+        if(operand.kind === "expression")
+        {
+            return String(this.evaluator.evaluate(operand.tokens, this.resolveValue));
+        }
+
         throw new CobolRuntimeError(operand.line, `unknown operand kind "${operand.kind}"`);
     }
 
@@ -417,6 +461,11 @@ class Interpreter
             if(item.pic.kind === "numeric") { return item.getNumeric(); }
 
             return item.getDisplay();
+        }
+
+        if(operand.kind === "expression")
+        {
+            return this.evaluator.evaluate(operand.tokens, this.resolveValue);
         }
 
         throw new CobolRuntimeError(operand.line, `unknown operand kind "${operand.kind}"`);
@@ -440,6 +489,18 @@ class Interpreter
         if(operand.kind === "identifier")
         {
             return this.lookupItem(operand).getNumeric();
+        }
+
+        if(operand.kind === "expression")
+        {
+            const value = this.evaluator.evaluate(operand.tokens, this.resolveValue);
+
+            if(typeof value !== "number")
+            {
+                throw new CobolRuntimeError(operand.line, `expected numeric value, got ${typeof value}`);
+            }
+
+            return value;
         }
 
         throw new CobolRuntimeError(operand.line, `unknown operand kind "${operand.kind}"`);
